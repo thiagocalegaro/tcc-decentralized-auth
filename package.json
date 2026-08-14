@@ -1,0 +1,8 @@
+{
+  "name": "tcc-decentralized-auth",
+  "private": true,
+  "workspaces": [
+    "sdk-server-node",
+    "demo-backend-node"
+  ]
+}

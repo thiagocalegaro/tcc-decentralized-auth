@@ -1,0 +1,73 @@
+{
+  "name": "@tcc-auth/sdk-server-node",
+  "version": "1.0.0",
+  "description": "SDK server-side para autenticação descentralizada baseada em blockchain. Implementa ECDSA (EIP-4361/SIWE), prevenção a replay attacks e token-gating via Smart Contracts na rede Ethereum.",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "build:check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "ethereum",
+    "blockchain",
+    "web3",
+    "authentication",
+    "siwe",
+    "eip-4361",
+    "ecdsa",
+    "decentralized",
+    "token-gating",
+    "nft",
+    "smart-contracts",
+    "jwt",
+    "sdk"
+  ],
+  "author": "Thiago Martin",
+  "license": "MIT",
+  "homepage": "https://github.com/thiago-martin/tcc-decentralized-auth#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thiago-martin/tcc-decentralized-auth.git"
+  },
+  "bugs": {
+    "url": "https://github.com/thiago-martin/tcc-decentralized-auth/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "ethers": "^6.13.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.9",
+    "tsup": "^8.1.0",
+    "typescript": "^5.5.2",
+    "vitest": "^1.6.0"
+  },
+  "peerDependencies": {
+    "ethers": "^6.0.0",
+    "redis": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "redis": {
+      "optional": true
+    }
+  }
+}
