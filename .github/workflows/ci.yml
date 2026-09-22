@@ -25,7 +25,17 @@ jobs:
       - run: npm ci
       - run: npm run setup
       - run: npm run typecheck
-      - run: npm test
+      - name: Wait for PostgreSQL
+        run: node scripts/wait-postgres.mjs
+      - name: Run npm test
+        run: |
+          set -o pipefail
+          if ! npm test 2>&1 | tee npm-test.log; then
+            summary=$(tail -n 25 npm-test.log | tr '\n' ' ' | cut -c1-4000)
+            echo "::error title=Vitest failure::$summary"
+            exit 1
+          fi
+        shell: bash
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
