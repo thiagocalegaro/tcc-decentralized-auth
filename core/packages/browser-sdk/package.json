@@ -1,0 +1,9 @@
+{
+  "name": "@tcc/browser-sdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "test": "vitest run src/index.test.ts" },
+  "dependencies": { "viem": "^2.37.0" }
+}

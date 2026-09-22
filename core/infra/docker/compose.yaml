@@ -1,0 +1,19 @@
+name: ancora-tcc
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: tcc
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tcc_local_dev}
+      POSTGRES_DB: tcc_auth
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - ancora_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U tcc -d tcc_auth']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+volumes:
+  ancora_data:

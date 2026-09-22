@@ -1,22 +1,10 @@
-# Dependências
 node_modules/
-
-# Build compilado
-dist/
-
-# Variáveis de ambiente (contém secrets)
 .env
-
-# Logs
+.env.*
+!.env.example
+.local/
+**/dist/
+coverage/
+playwright-report/
+test-results/
 *.log
-npm-debug.log*
-
-# Sistema operacional
-.DS_Store
-Thumbs.db
-
-# IDEs
-.idea/
-.vscode/
-*.swp
-*.swo

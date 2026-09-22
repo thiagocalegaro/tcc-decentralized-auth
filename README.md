@@ -1,251 +1,141 @@
-# TCC — Sistema de Autenticação Descentralizada Baseado em Blockchain
+# Âncora · TCC II
 
-> Trabalho de Conclusão de Curso (TCC) — Sistemas para Internet, UFSM, 2026.
-> **Autor:** Thiago Martin
+Protótipo de autenticação por carteira Ethereum desenvolvido para o TCC de Thiago Augusto Calegaro Martin. Você conecta uma carteira, assina uma mensagem Sign-In with Ethereum (SIWE) e acessa uma área protegida por sessão.
 
-## 📌 O que é este projeto
+Esta versão verifica contas EOA por recuperação da assinatura. O login acontece fora da blockchain e dispensa transação, saldo e taxa de rede. A chave privada fica na carteira. A API de verificação e as sessões da aplicação dependem dos servidores do projeto.
 
-Um **SDK server-side em Node.js/TypeScript** que permite autenticar usuários em aplicações web usando carteiras Ethereum (MetaMask, Ledger, etc.) **em vez de senhas armazenadas em banco de dados**. A identidade do usuário é provada matematicamente via assinatura criptográfica ECDSA, sem nenhum segredo compartilhado entre cliente e servidor.
+O projeto oferece uma API própria de integração, com código de uso único, PKCE S256 e cliente confidencial. Ele **não implementa um provedor OAuth 2.0 ou OpenID Connect**. Considere esta entrega um protótipo acadêmico; ainda há trabalho de operação, persistência de sessões e revisão antes de qualquer uso em produção.
 
-O projeto é composto por:
-- **`sdk-server-node`** — Biblioteca reutilizável (NPM package) com toda a lógica de autenticação
-- **`demo-backend-node`** — API Express de demonstração que consome o SDK
+## Executar no Windows
 
----
+Instale Node.js 22.12 ou superior, com npm. No PowerShell:
 
-## 🏗️ Arquitetura
-
-```
-Usuário (MetaMask)          Backend (Express + SDK)          Blockchain (Ethereum)
-       │                            │                              │
-       │ GET /challenge             │                              │
-       │───────────────────────────>│ Gera nonce + mensagem EIP-4361│
-       │<───────────────────────────│                              │
-       │                            │                              │
-       │ Assina com chave privada   │                              │
-       │ (ECDSA / secp256k1)        │                              │
-       │                            │                              │
-       │ POST /verify               │                              │
-       │───────────────────────────>│ ecrecover → valida endereço  │
-       │                            │ valida domínio, nonce, TTL   │
-       │                            │ (opcional) Token-Gating ────>│ balanceOf()
-       │                            │ Emite JWT                    │
-       │<───────────────────────────│                              │
-       │                            │                              │
-       │ GET /profile (Bearer JWT)  │                              │
-       │───────────────────────────>│ Middleware verifica JWT       │
-       │<───────────────────────────│                              │
+```powershell
+Set-Location -LiteralPath 'C:\Users\get10\projetos IA\TCC II'
+npm ci
+npm run setup
+npm run dev
 ```
 
-**Modelo de descentralização:** Web 3.0 pura — o SDK é uma biblioteca que roda dentro do servidor do desenvolvedor. Não existe servidor central intermediário. A verificação ECDSA é 100% offline (matemática pura). A blockchain só é consultada opcionalmente para Token-Gating.
+Abra **[http://localhost:5173](http://localhost:5173)**. Use esse endereço, inclusive o nome `localhost`: o servidor verifica a origem exata. Abrir `http://127.0.0.1:5173` não corresponde à configuração padrão.
 
----
+`npm run setup` gera `.env`, um segredo aleatório de cliente e a chave ES256 em `.local/signing-key.json`. O script preserva arquivos existentes. O `.gitignore` exclui `.env` e `.local/`; mantenha esses arquivos fora de commits e compartilhamentos. A chave ES256 pertence à API e serve para assinar asserções de autenticação. Ela é distinta da chave da sua carteira.
 
-## 📁 Estrutura de Arquivos
+O comando `npm run dev` inicia os três processos e os encerra com `Ctrl+C`. Caso precise reiniciar um backend após editar o código, encerre o comando e execute-o outra vez. Para trabalhar com observação de arquivos, use `npm run dev:api`, `npm run dev:bff` e `npm run dev:web` em terminais separados.
 
-```
-tcc-decentralized-auth/
-├── package.json                      # Monorepo (npm workspaces)
-├── docker-compose.yml                # Containers para API demo e testes
-├── .gitignore                        # node_modules, dist, .env
-│
-├── sdk-server-node/                  # 📦 BIBLIOTECA REUTILIZÁVEL
-│   ├── package.json                  # Metadados NPM, exports dual CJS/ESM
-│   ├── tsup.config.ts                # Bundler (gera index.js + index.mjs)
-│   ├── tsconfig.json                 # Config TypeScript
-│   ├── LICENSE                       # MIT
-│   ├── README.md                     # Documentação do SDK para desenvolvedores
-│   ├── src/
-│   │   ├── index.ts                  # Re-exporta todos os módulos
-│   │   ├── types.ts                  # Interfaces: SiweMessage, VerificationResult
-│   │   ├── nonce.ts                  # NonceStore interface, MemoryNonceStore, RedisNonceStore, RedisLikeClient
-│   │   ├── verifier.ts              # SiweVerifier: parsing EIP-4361 + verificação ECDSA
-│   │   └── contracts.ts             # BlockchainVerifier: Token-Gating ERC-20/ERC-721, Roles
-│   ├── tests/
-│   │   └── auth.test.ts             # 13 testes unitários (Vitest)
-│   └── dist/                        # Build compilado (gerado por tsup)
-│       ├── index.js                  #   → CommonJS (require)
-│       ├── index.mjs                 #   → ESM (import)
-│       ├── index.d.ts                #   → Tipos TypeScript (CJS)
-│       └── index.d.mts               #   → Tipos TypeScript (ESM)
-│
-├── demo-backend-node/                # 🖥️ API DE DEMONSTRAÇÃO
-│   ├── package.json
-│   ├── tsconfig.json
-│   ├── .env.example                  # Template de variáveis de ambiente
-│   └── src/
-│       ├── index.ts                  # Express: endpoints /challenge, /verify, /profile
-│       └── test-client.ts           # Simulador de carteira para testes de integração
-│
-└── docs/                             # 📄 DOCUMENTAÇÃO DO TCC
-    ├── preparacao_banca.md           # Perguntas e respostas para a defesa
-    ├── fluxo_completo.md             # Explicação técnica detalhada do fluxo
-    ├── guia_integracao.md            # Guia passo a passo para desenvolvedores
-    ├── analise_tcc_opcoes.md         # Análise arquitetural (Web 2.5 vs Web 3.0)
-    ├── roteiro_proximos_passos.md    # Roadmap de desenvolvimento
-    ├── implementation_plan.md        # Plano de implementação original
-    ├── task.md                       # Checklist de tarefas concluídas
-    └── walkthrough.md                # Resumo das mudanças realizadas
-```
+Em Linux ou macOS, entre na pasta do projeto com `cd '/caminho/TCC II'` e execute os mesmos comandos `npm ci`, `npm run setup` e `npm run dev`.
 
----
+## Fazer o primeiro login
 
-## 🧩 Componentes do SDK (`sdk-server-node`)
+1. Abra a aplicação em um navegador com uma carteira Ethereum, como MetaMask, instalada e desbloqueada. Use uma conta EOA de teste.
+2. Selecione Ethereum Mainnet, chain ID `1`, ou Sepolia, chain ID `11155111`. Você não precisa de fundos para assinar a mensagem.
+3. Escolha a carteira detectada, leia o resumo de dados e marque o consentimento.
+4. Clique em **Conectar e assinar**. Autorize a conexão e confira o domínio, a conta e a mensagem na carteira antes de assinar.
+5. Na área privada, clique em **Acessar recurso protegido**. O backend exige a sessão para responder. **Encerrar sessão** revoga a sessão atual.
 
-### `types.ts` — Interfaces
-- **`SiweMessage`** — Mensagem de login EIP-4361 (domain, address, nonce, chainId, timestamps, etc.)
-- **`VerificationResult`** — Resultado da verificação: `{ success, message?, address? }`
+A interface informa quando não encontra uma carteira e explica como preparar o navegador. O produto não contém carteira de teste embutida nem chave privada pronta. Os testes automatizados usam provedores controlados dentro do ambiente de teste.
 
-### `nonce.ts` — Gerenciamento de Nonces
-- **`NonceStore`** (interface) — Contrato assíncrono para qualquer implementação de armazenamento
-- **`MemoryNonceStore`** — Implementação em memória RAM (dev/single-server)
-- **`RedisNonceStore`** — Implementação em Redis (produção/multi-server)
-- **`RedisLikeClient`** (interface) — Tipagem para o client Redis (substitui `any`)
-- Nonces: 16 bytes aleatórios (crypto.randomBytes), TTL configurável (default 5min), consumidos após primeira verificação
+Uma troca de conta ou rede durante o login cancela a tentativa. Após criar a sessão, mudar a seleção ou desconectar a extensão não revoga a sessão da aplicação: use **Encerrar sessão**. A versão atual não oferece recuperação de conta nem carteiras de contrato ERC-1271.
 
-### `verifier.ts` — Verificação ECDSA + EIP-4361
-- **`SiweVerifier`** — Classe principal. Valida em sequência:
-  1. `ecrecover` via `ethers.verifyMessage()` — recupera endereço da assinatura
-  2. Comparação de endereços (normalização EIP-55 via `getAddress()`)
-  3. Validação de domínio (anti-phishing)
-  4. Validação + consumo de nonce (anti-replay)
-  5. Validação de expiração e `notBefore`
-- **`SiweVerifier.createMessage()`** — Método estático para formatar mensagens EIP-4361
-- **`parseMessage()`** — Parser de mensagem EIP-4361 (regex + line-by-line)
+## Componentes e fluxo
 
-### `contracts.ts` — Consultas On-chain (Token-Gating)
-- **`BlockchainVerifier`** — Consultas de leitura via `ethers.JsonRpcProvider`:
-  - `checkERC20Balance(address, tokenContract, minBalance)` — Saldo mínimo de token
-  - `checkERC721Ownership(address, nftContract)` — Posse de NFT
-  - `checkRole(address, aclContract, roleHash)` — Role no padrão OpenZeppelin AccessControl
+| Componente | Endereço de desenvolvimento | Responsabilidade |
+| --- | --- | --- |
+| Interface React/Vite | `http://localhost:5173` | Consentimento, carteira, assinatura e área privada; proxy `/api` para o BFF |
+| API Fastify | `http://localhost:3001` | Desafios SIWE, verificação EOA, códigos e asserções ES256 |
+| BFF Fastify | `http://localhost:3002` | Segredo do cliente, PKCE, validação das asserções e cookies de sessão |
 
----
-
-## ✅ O que está PRONTO
-
-| Etapa | Status |
-|-------|--------|
-| Setup do workspace (monorepo npm workspaces) | ✅ |
-| SDK: NonceStore (Memory + Redis, interface assíncrona) | ✅ |
-| SDK: SiweVerifier (ECDSA + EIP-4361 completo) | ✅ |
-| SDK: BlockchainVerifier (ERC-20, ERC-721, AccessControl) | ✅ |
-| SDK: Build dual CJS/ESM via tsup | ✅ |
-| SDK: 13 testes unitários (Vitest) | ✅ |
-| SDK: JSDoc completo em todos os arquivos | ✅ |
-| SDK: README.md, LICENSE (MIT), package.json com metadados NPM | ✅ |
-| Demo: API Express com /challenge, /verify, /profile | ✅ |
-| Demo: Middleware JWT para rotas protegidas | ✅ |
-| Demo: CORS habilitado | ✅ |
-| Demo: test-client.ts (simulador de carteira + testes de segurança) | ✅ |
-| Projeto: .gitignore, .env.example, docker-compose.yml | ✅ |
-| Documentação: preparação para banca, fluxo técnico, guia de integração | ✅ |
-
----
-
-## ⏳ O que FALTA
-
-| Item | Prioridade | Detalhes |
-|------|:---:|---------|
-| **Build do SDK precisa ser refeito** | 🔴 Alta | O último build com `tsup` funcionou, mas se houver mudanças nos fontes, rodar `cd sdk-server-node && npx tsup` |
-| **Publicação real no NPM** | 🟡 Média | O package.json está pronto. Falta `npm login` + `npm publish` (ou manter local) |
-| **SDK client-side (frontend)** | 🟡 Média | Não foi criado. Existe apenas o código de exemplo no `docs/guia_integracao.md` mostrando como usar `window.ethereum` / MetaMask |
-| **Frontend demo funcional** | 🟡 Média | Não existe frontend. O teste é feito via `test-client.ts` (simulador em código) |
-| **Análise de ameaças no artigo** | 🟢 Baixa | O conteúdo está em `docs/preparacao_banca.md` seção 6, mas precisa ser formatado para o artigo LaTeX/Word |
-
----
-
-## 🚀 Como rodar
-
-### Pré-requisitos
-- **Node.js >= 18** (`node --version`)
-- npm (vem com Node.js)
-
-### Instalação
-```bash
-git clone https://github.com/thiago-martin/tcc-decentralized-auth.git
-cd tcc-decentralized-auth
-npm install
+```mermaid
+sequenceDiagram
+    participant N as Navegador + SDK
+    participant C as Carteira EOA
+    participant B as BFF
+    participant A as API de autenticação
+    N->>B: Iniciar fluxo
+    B-->>N: Cookie HttpOnly + flowId + codeChallenge
+    N->>C: Solicitar conta e rede
+    N->>A: Solicitar desafio vinculado ao cliente e PKCE
+    A-->>N: Mensagem SIWE com nonce e validade
+    N->>C: Solicitar assinatura da mensagem
+    C-->>N: Assinatura
+    N->>A: Verificar mensagem e assinatura
+    A-->>N: Código de uso único
+    N->>B: Concluir fluxo com flowId e código
+    B->>A: Trocar código com segredo e codeVerifier
+    A-->>B: Asserção ES256
+    B-->>N: Cookie de sessão HttpOnly
+    N->>B: Consultar recurso protegido
 ```
 
-### Build do SDK
-```bash
-cd sdk-server-node
-npx tsup          # Gera dist/index.js (CJS) + dist/index.mjs (ESM)
+O BFF guarda o `codeVerifier` no servidor e associa o fluxo a um cookie HttpOnly. Na conclusão, exige o cookie correspondente ao `flowId` e troca o código por uma asserção. O navegador recebe apenas a identificação da conta e um cookie de sessão opaco; o segredo do cliente e a asserção não fazem parte da resposta ao navegador.
+
+Os desafios e fluxos duram cinco minutos. O código e a asserção duram 60 segundos. A sessão expira após 30 minutos sem atividade ou oito horas desde sua criação. A identidade usa o formato `eip155:<chainId>:<endereço-em-minúsculas>`; a mesma carteira em duas redes corresponde a duas identidades dessa aplicação.
+
+| Consulta | URL padrão |
+| --- | --- |
+| API ativa | [http://localhost:3001/health/live](http://localhost:3001/health/live) |
+| Persistência da API disponível | [http://localhost:3001/health/ready](http://localhost:3001/health/ready) |
+| Contrato OpenAPI da API | [http://localhost:3001/openapi.json](http://localhost:3001/openapi.json) |
+| Chave pública de verificação | [http://localhost:3001/.well-known/jwks.json](http://localhost:3001/.well-known/jwks.json) |
+| BFF ativo, pelo proxy Web | [http://localhost:5173/api/health](http://localhost:5173/api/health) |
+
+## Persistência e PostgreSQL
+
+A configuração inicial usa memória, adequada a uma demonstração com um processo de cada backend. Reiniciar a API apaga seus desafios e códigos. Reiniciar o BFF invalida suas sessões e fluxos.
+
+O adaptador PostgreSQL persiste **os desafios e códigos da API**. O BFF continua com armazenamento em memória mesmo com `STORAGE_DRIVER=postgres`; não distribua essa versão do BFF entre várias instâncias.
+
+Com Docker e Docker Compose ativos:
+
+```shell
+docker compose -f core/infra/docker/compose.yaml up -d postgres
+docker compose -f core/infra/docker/compose.yaml ps
 ```
 
-### Build da API Demo
-```bash
-cd demo-backend-node
-npx tsc            # Gera dist/index.js e dist/test-client.js
+Aguarde o estado saudável do serviço e edite `.env`:
+
+```dotenv
+STORAGE_DRIVER=postgres
+DATABASE_URL=postgresql://tcc:tcc_local_dev@127.0.0.1:5432/tcc_auth
 ```
 
-### Rodar testes unitários (SDK)
-```bash
-cd sdk-server-node
-npx vitest run     # 13 testes, ~300ms
+As credenciais acima pertencem ao ambiente local do Compose. Se alterar a senha do serviço, ajuste `DATABASE_URL` com o mesmo valor. Aplique as migrações e inicie a aplicação:
+
+```shell
+npm run db:migrate
+npm run dev
 ```
 
-### Rodar teste de integração (API + simulador)
-```bash
-cd demo-backend-node
-node dist/index.js &           # Inicia o servidor na porta 3000
-node dist/test-client.js       # Roda o simulador completo
+O Compose vincula o PostgreSQL a `127.0.0.1:5432` e mantém os dados em volume. Para parar o banco preservando os dados, use `docker compose -f core/infra/docker/compose.yaml stop`.
+
+Docker não estava ativo no ambiente da entrega, portanto os testes contra PostgreSQL real não foram executados localmente. O workflow em `.github/workflows/ci.yml` provisiona PostgreSQL e define `TEST_DATABASE_URL` para a suíte de integração; isso descreve a configuração do CI, não comprova uma execução remota. Consulte [a validação da entrega](core/docs/VALIDACAO.md).
+
+## Verificação
+
+```shell
+npm run typecheck
+npm test
+npm run build
+npx playwright install chromium
+npm run test:e2e
 ```
 
-O simulador testa:
-1. ✅ Login bem-sucedido (fluxo completo challenge → sign → verify → JWT → profile)
-2. ✅ Bloqueio de replay attack (mesma assinatura reutilizada)
-3. ✅ Bloqueio de falsificação de identidade (assinatura válida + endereço errado)
-4. ✅ Bloqueio por Token-Gating (saldo insuficiente, consulta real à Ethereum Mainnet)
+`npm run build` verifica os tipos e gera a interface em `frontend/demo-web/dist`. Os testes do SDK cobrem o vínculo entre mensagem, origem, conta e rede, a assinatura dos bytes originais e o cancelamento do fluxo. Os demais testes exercitam API, sessões, armazenamento e integração. O relatório com os resultados desta entrega fica em [core/docs/VALIDACAO.md](core/docs/VALIDACAO.md).
 
-### Via Docker Compose
-```bash
-docker-compose up demo-api             # Roda a API demo
-docker-compose run --rm test           # Roda os testes
+A suíte PostgreSQL exige `TEST_DATABASE_URL` apontando para uma base dedicada a testes, com permissão de criar e remover schemas. Sem essa variável, o Vitest ignora os testes PostgreSQL. A configuração e os detalhes de isolamento estão em [core/packages/storage/README.md](core/packages/storage/README.md).
+
+## Organização
+
+```text
+frontend/
+  demo-web/       Interface React/Vite de demonstração
+  tests/e2e/      Testes de navegador da interface
+core/
+  apps/           API de autenticação e BFF de sessões
+  packages/       SDK, protocolo e armazenamento
+  infra/          PostgreSQL local e migrações SQL
+  docs/           Decisões, ameaças e validação técnica
+scripts/          Preparação e execução coordenada
 ```
 
----
-
-## 🔑 Variáveis de Ambiente (demo-backend-node)
-
-Copie `.env.example` para `.env`:
-
-```bash
-PORT=3000
-DOMAIN=localhost:3000
-JWT_SECRET=TROQUE_POR_UMA_CHAVE_SECRETA_FORTE
-RPC_URL=https://ethereum-rpc.publicnode.com
-TOKEN_ADDRESS=0x514910771AF9Ca656af840dff83E8264EcF986CA
-MIN_BALANCE=1.0
-```
-
----
-
-## 🎓 Contexto Acadêmico (importante para continuidade)
-
-### Decisões de arquitetura tomadas:
-1. **Web 3.0 pura (descentralização total)** — Escolhido em vez de Web 2.5 (API centralizada). O SDK é uma biblioteca que cada dev roda no próprio servidor, sem intermediário central.
-2. **Node.js/TypeScript** — Escolhido em vez de Java/Spring. É o ecossistema mais comum na Web3.
-3. **Sem frontend** — O foco é o backend/SDK. O frontend é demonstrado apenas em código de exemplo.
-4. **Token-Gating como extensão** — Não é parte do núcleo de autenticação. Foi incluído para justificar a presença da blockchain (a verificação ECDSA em si é 100% offline).
-
-### Pontos sensíveis para a banca:
-- "A verificação ECDSA funciona sem blockchain" → **Verdade.** A blockchain justifica-se pelo registro de identidades descentralizado (sem CA) e pelo Token-Gating.
-- "MetaMask centraliza a chave" → **Parcialmente verdade.** MetaMask é apenas uma opção. O SDK aceita qualquer assinatura ECDSA/secp256k1 (Ledger, Trust Wallet, código puro).
-- Toda a preparação para banca está em `docs/preparacao_banca.md`.
-
-### Documentos de referência em `docs/`:
-| Arquivo | Conteúdo |
-|---------|----------|
-| `preparacao_banca.md` | 8 seções de perguntas e respostas para a defesa |
-| `fluxo_completo.md` | Explicação técnica com diagramas de sequência |
-| `guia_integracao.md` | Tutorial para desenvolvedores (do `npm install` ao Token-Gating) |
-| `analise_tcc_opcoes.md` | Debate centralização vs descentralização |
-| `roteiro_proximos_passos.md` | Roadmap original (fases 1-4) |
-| `task.md` | Checklist de todas as tarefas concluídas |
-
----
-
-## 📜 Licença
-
-MIT © Thiago Martin — UFSM, 2026
+Leia a [decisão de arquitetura](core/docs/adr/001-siwe-eoa-bff.md) e o [modelo de ameaças](core/docs/threat-model.md) antes de ampliar o protocolo. As próximas etapas incluem sessões persistentes no BFF, suporte ERC-1271 com política de RPC e um estudo acadêmico de tempo de login, falhas e esforço de integração. Uma avaliação de produção precisa incluir rotação de chaves, HTTPS, observabilidade e limites compartilhados entre instâncias.
