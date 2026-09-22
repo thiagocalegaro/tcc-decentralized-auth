@@ -27,8 +27,15 @@ jobs:
       # dependency and aborts before Vitest can start.
       - run: npm install --include=optional --no-audit --no-fund
       # The lockfile is maintained on Windows, so npm does not materialize
-      # Rollup's Linux optional package on this Ubuntu runner.
-      - run: npm install --force --no-save --package-lock=false --ignore-scripts @rollup/rollup-linux-x64-gnu@4.63.3
+      # Rollup's Linux optional package on this Ubuntu runner. Install the
+      # official tarball directly without changing the versioned lockfile.
+      - name: Install Rollup Linux binary
+        shell: bash
+        run: |
+          mkdir -p node_modules/@rollup
+          curl -fsSL https://registry.npmjs.org/@rollup/rollup-linux-x64-gnu/-/rollup-linux-x64-gnu-4.63.3.tgz \
+            | tar -xz -C node_modules/@rollup
+          mv node_modules/@rollup/package node_modules/@rollup/rollup-linux-x64-gnu
       - run: npm run setup
       - run: npm run typecheck
       - name: Wait for PostgreSQL
