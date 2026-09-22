@@ -26,6 +26,9 @@ jobs:
       # npm ci on a Windows-generated lockfile treats that optional entry as a hard
       # dependency and aborts before Vitest can start.
       - run: npm install --include=optional --no-audit --no-fund
+      # The lockfile is maintained on Windows, so npm does not materialize
+      # Rollup's Linux optional package on this Ubuntu runner.
+      - run: npm install --no-save --package-lock=false --ignore-scripts @rollup/rollup-linux-x64-gnu@4.63.3
       - run: npm run setup
       - run: npm run typecheck
       - name: Wait for PostgreSQL
