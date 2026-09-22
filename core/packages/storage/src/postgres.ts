@@ -126,10 +126,10 @@ export class PostgresAuthStore implements AuthStore {
 
   async cleanup(now: number): Promise<void> {
     this.assertOpen();
-    await this.pool.query(`
-      WITH expired_challenges AS (DELETE FROM auth_challenges WHERE expires_at <= $1)
-      DELETE FROM auth_authorization_codes WHERE expires_at <= $1
-    `, [now]);
+    // Keep the cleanup statements independent: a data-modifying CTE would
+    // require a RETURNING clause on PostgreSQL and offers no benefit here.
+    await this.pool.query('DELETE FROM auth_challenges WHERE expires_at <= $1', [now]);
+    await this.pool.query('DELETE FROM auth_authorization_codes WHERE expires_at <= $1', [now]);
   }
 
   async ready(): Promise<boolean> {
