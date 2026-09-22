@@ -22,7 +22,10 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - run: npm ci
+      # npm install resolves Rollup's platform-specific optional binary for Ubuntu.
+      # npm ci on a Windows-generated lockfile treats that optional entry as a hard
+      # dependency and aborts before Vitest can start.
+      - run: npm install --include=optional --no-audit --no-fund
       - run: npm run setup
       - run: npm run typecheck
       - name: Wait for PostgreSQL
