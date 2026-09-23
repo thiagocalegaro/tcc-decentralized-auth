@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Documentação interativa do protótipo Âncora: autenticação descentralizada com carteira Ethereum, SIWE, PKCE e sessões protegidas.">
   <title>Âncora / documentação técnica</title>
+  <link rel="stylesheet" href="integration.css">
+  <script src="integration.js" defer></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
     :root{--ink:#eef3f0;--muted:#94a5a1;--bg:#0a0f12;--panel:#10181b;--panel-2:#152125;--line:#26373a;--lime:#d9f36b;--coral:#ff765c;--cyan:#76d8d0;--shadow:0 22px 80px rgba(0,0,0,.3);--radius:18px}
@@ -15,39 +17,457 @@
   </style>
 </head>
 <body>
+  <a class="skip-nav" href="#main">Pular para o conteúdo</a>
   <div class="shell">
     <aside class="rail" aria-label="Navegação da documentação">
       <div class="brand"><img class="mark" src="logo-ancora.png" alt="" aria-hidden="true"> Âncora <span class="mono" style="color:var(--muted);font-size:9px">TCC II</span></div>
       <nav class="nav">
-        <a class="active" href="#visao-geral">Visão geral</a><a href="#arquitetura">Arquitetura</a><a href="#fluxo">Fluxo de login</a><a href="#api">API</a><a href="#seguranca">Segurança</a><a href="#glossario">Glossário</a>
+        <a class="active" href="#visao-geral">Visão geral</a><a href="#arquitetura">Arquitetura</a><a href="#fluxo">Fluxo de login</a><a href="#integracao">Integração para devs</a><a href="#api">API</a><a href="#seguranca">Segurança</a><a href="#glossario">Glossário</a>
       </nav>
       <div class="rail-foot">v0.1 · protótipo acadêmico</div>
     </aside>
-    <main class="main">
+    <main class="main" id="main">
       <header class="hero" id="visao-geral">
         <div><div class="stamp"><span class="dot"></span> DOCUMENTAÇÃO VIVA</div><h1>Autenticação que deixa a chave <em>com você.</em></h1><p class="lead">O Âncora usa uma carteira Ethereum para provar a posse de uma conta. A aplicação verifica a assinatura, troca um código de uso único e mantém a sessão fora da blockchain.</p></div>
         <div class="hero-note"><span class="eyebrow">Decisão central</span><strong>Assinar, não transacionar.</strong><p>O login não movimenta fundos, não exige saldo e não grava dados pessoais na rede. A carteira assina uma mensagem curta, vinculada ao domínio, à rede e a um nonce.</p><span class="mono" style="color:var(--cyan)">SIWE · EIP-4361</span></div>
       </header>
       <section aria-labelledby="status-title"><div class="section-head"><div><span class="eyebrow">01 / escopo</span><h2 id="status-title">O que o protótipo entrega</h2></div><p>A implementação separa interface, API e BFF para que cada camada tenha uma responsabilidade verificável.</p></div><div class="grid-3"><article class="card"><div class="num">01</div><h3>Identidade por rede</h3><p>Uma conta vira <code>eip155:chainId:endereço</code>. A mesma carteira em redes diferentes gera identidades distintas.</p></article><article class="card"><div class="num">02</div><h3>Sessão protegida</h3><p>O BFF entrega um cookie HttpOnly opaco e impede o acesso a recursos privados sem uma sessão válida.</p></article><article class="card"><div class="num">03</div><h3>Integração explícita</h3><p>SDK, API e frontend ficam separados. O fluxo usa PKCE S256, códigos de uso único e asserções ES256.</p></article></div></section>
       <section id="arquitetura" aria-labelledby="architecture-title"><div class="section-head"><div><span class="eyebrow">02 / mapa do sistema</span><h2 id="architecture-title">Três camadas, um contrato</h2></div><p>O navegador nunca recebe o segredo do cliente nem a asserção assinada pela API.</p></div><div class="architecture"><article class="node"><span class="tag">frontend</span><h3>Interface React/Vite</h3><ul><li>detecta a carteira</li><li>exibe consentimento</li><li>solicita assinatura</li><li>mostra a área restrita</li></ul></article><article class="node"><span class="tag">bff · :3002</span><h3>Orquestrador de sessão</h3><ul><li>guarda codeVerifier</li><li>protege o cookie</li><li>troca o código</li><li>expõe recursos privados</li></ul></article><article class="node"><span class="tag">api · :3001</span><h3>Verificador de identidade</h3><ul><li>cria desafios SIWE</li><li>recupera a assinatura EOA</li><li>emite código único</li><li>publica JWKS ES256</li></ul></article></div></section>
-      <section id="fluxo" aria-labelledby="flow-title"><div class="section-head"><div><span class="eyebrow">03 / por dentro</span><h2 id="flow-title">O login, passo a passo</h2></div><p>Selecione uma etapa para acompanhar quem fala com quem e qual dado cruza a fronteira.</p></div><div class="flow-wrap"><div class="steps" role="tablist" aria-label="Etapas do login"><button class="step-btn active" data-step="1" role="tab"><span>01</span>Iniciar fluxo</button><button class="step-btn" data-step="2" role="tab"><span>02</span>Montar desafio</button><button class="step-btn" data-step="3" role="tab"><span>03</span>Assinar mensagem</button><button class="step-btn" data-step="4" role="tab"><span>04</span>Trocar código</button><button class="step-btn" data-step="5" role="tab"><span>05</span>Acessar recurso</button></div><div class="step-detail" id="step-detail" data-step="01" role="tabpanel"><h3>O BFF abre um fluxo curto</h3><p>O navegador chama o BFF. Ele cria um <code>flowId</code>, gera um <code>codeVerifier</code> e guarda os dois no servidor. A resposta contém apenas um cookie HttpOnly e o desafio PKCE.</p><div class="code">POST /api/auth/start<br>{ "flowId": "flow_…", "codeChallenge": "S256:…" }<button class="copy" data-copy="POST /api/auth/start">copiar</button></div></div></div></section>
-      <section id="api" aria-labelledby="api-title"><div class="section-head"><div><span class="eyebrow">04 / contrato</span><h2 id="api-title">Endpoints para integrar</h2></div><p>Filtre pelo caminho ou pela responsabilidade. O contrato OpenAPI fica disponível em <code>/openapi.json</code>.</p></div><div class="endpoint-tools"><input id="endpoint-filter" type="search" placeholder="Filtrar endpoints…" aria-label="Filtrar endpoints"></div><div class="table-wrap"><table><thead><tr><th>Método</th><th>Caminho</th><th>Camada</th><th>Para quê</th></tr></thead><tbody id="endpoint-body"><tr data-search="get health live bff api"><td><span class="pill">GET</span></td><td>/health/live</td><td>API / BFF</td><td>Verifica se o processo responde.</td></tr><tr data-search="post auth start fluxo bff"><td><span class="pill">POST</span></td><td>/api/auth/start</td><td>BFF</td><td>Inicia o fluxo e cria o vínculo PKCE.</td></tr><tr data-search="get auth challenge api siwe"><td><span class="pill">GET</span></td><td>/auth/challenge</td><td>API</td><td>Emite a mensagem SIWE com nonce.</td></tr><tr data-search="post auth verify api assinatura"><td><span class="pill">POST</span></td><td>/auth/verify</td><td>API</td><td>Valida domínio, rede, nonce e assinatura.</td></tr><tr data-search="post auth exchange bff api código"><td><span class="pill">POST</span></td><td>/api/auth/exchange</td><td>BFF → API</td><td>Troca o código por uma sessão HttpOnly.</td></tr><tr data-search="get api protected recurso sessão"><td><span class="pill">GET</span></td><td>/api/protected</td><td>BFF</td><td>Responde apenas com sessão válida.</td></tr></tbody></table></div></section>
+      <section id="fluxo" aria-labelledby="flow-title">
+        <div class="section-head"><div><span class="eyebrow">03 / por dentro</span><h2 id="flow-title">O login, passo a passo</h2></div><p>Selecione uma etapa para acompanhar quem fala com quem e qual dado cruza a fronteira.</p></div>
+        <div class="flow-wrap">
+          <div class="steps" role="group" aria-label="Etapas do login">
+            <button class="step-btn active" data-step="1" type="button" aria-pressed="true" aria-controls="step-detail"><span>01</span>Iniciar fluxo</button>
+            <button class="step-btn" data-step="2" type="button" aria-pressed="false" aria-controls="step-detail"><span>02</span>Montar desafio</button>
+            <button class="step-btn" data-step="3" type="button" aria-pressed="false" aria-controls="step-detail"><span>03</span>Assinar mensagem</button>
+            <button class="step-btn" data-step="4" type="button" aria-pressed="false" aria-controls="step-detail"><span>04</span>Trocar código</button>
+            <button class="step-btn" data-step="5" type="button" aria-pressed="false" aria-controls="step-detail"><span>05</span>Acessar recurso</button>
+          </div>
+          <div class="step-detail" id="step-detail" data-step="01">
+            <h3>O BFF abre um fluxo curto</h3>
+            <p>O BFF guarda flowId e codeVerifier no servidor. O navegador recebe o cookie HttpOnly do fluxo, flowId, codeChallenge e a configuração pública do cliente.</p>
+            <div class="code"><code id="flow-code">Navegador → BFF
+POST /api/auth/start
+Corpo: {}
+Resposta: { flowId, codeChallenge, clientId,
+  authApiUrl, redirectUri, chainIds }</code><button class="code-copy" type="button" data-copy-target="flow-code" aria-label="Copiar etapa do fluxo">Copiar</button></div>
+            <span class="sr-only" id="flow-status" aria-live="polite"></span>
+          </div>
+        </div>
+      </section>
+
+      <section id="integracao" aria-labelledby="integration-title">
+        <div class="section-head">
+          <div><span class="eyebrow">GUIA / DESENVOLVEDORES</span><h2 id="integration-title">Integre o Âncora<br>à sua aplicação.</h2></div>
+          <p>Do ambiente local à primeira sessão: sete etapas com código para copiar, arquivos de referência e resultados esperados.</p>
+        </div>
+        <div class="guide-intro">
+          <p><strong>Comece pelo SDK e pelo BFF do exemplo.</strong> Use um frontend com suporte a TypeScript e mantenha o BFF na mesma origem pública da aplicação. Os pacotes desta versão são locais e privados; o projeto usa um protocolo próprio, sem compatibilidade OAuth/OIDC.</p>
+          <a class="guide-link" href="../core/docs/INTEGRACAO.md">Guia em Markdown ↗</a>
+        </div>
+        <div class="guide-progress">
+          <span id="guide-count" aria-live="polite">0 de 7 etapas conferidas</span>
+          <progress id="guide-progress" value="0" max="7" aria-label="Etapas conferidas da integração"></progress>
+          <button type="button" class="guide-reset" id="guide-reset">Limpar marcações</button>
+        </div>
+        <p class="sr-only" role="status" id="guide-status"></p>
+        <div class="guide-steps">
+          <details class="guide-step" open>
+            <summary>Prepare o ambiente local</summary>
+            <div class="guide-body">
+              <p>Instale Node.js 22.12 ou superior, npm e Git. Para testar o login, use uma extensão de carteira com conta EOA em Ethereum (1) ou Sepolia (11155111). A assinatura de login dispensa saldo. O modo em memória dispensa banco de dados.</p>
+              <p>Para uma cópia nova, execute os comandos abaixo. Se você já tem o projeto em <code>C:\Users\get10\projetos IA\TCC II</code>, entre nessa pasta e comece em <code>npm ci</code>.</p>
+              <div class="command-tabs" role="group" aria-label="Sistema dos comandos de instalação">
+                <button type="button" data-command-os="windows" aria-pressed="true">Windows · PowerShell</button>
+                <button type="button" data-command-os="unix" aria-pressed="false">Linux / macOS</button>
+              </div>
+              <div class="guide-code">
+                <div class="guide-code-head"><span id="setup-caption">PowerShell · pasta nova</span><button type="button" class="code-copy" data-copy-target="setup-code" aria-label="Copiar comandos de instalação">Copiar</button></div>
+                <pre tabindex="0"><code id="setup-code">git clone https://github.com/thiagocalegaro/tcc-decentralized-auth.git
+Set-Location -LiteralPath 'tcc-decentralized-auth'
+npm ci
+npm run setup
+npm run dev</code></pre>
+              </div>
+              <p><code>setup</code> cria o <code>.env</code>, um segredo de cliente aleatório e a chave ES256 em <code>.local/signing-key.json</code>. Ele preserva arquivos existentes. <code>dev</code> inicia frontend (:5173), API (:3001) e BFF (:3002).</p>
+              <p class="guide-result">Confira: abra <a href="http://localhost:5173" target="_blank" rel="noopener">localhost:5173</a> e consulte <a href="http://localhost:3001/health/ready" target="_blank" rel="noopener">/health/ready</a> e <a href="http://localhost:5173/api/health" target="_blank" rel="noopener">/api/health</a>. Os dois serviços devem responder 200.</p>
+              <label class="guide-check"><input id="guide-check-1" type="checkbox" data-guide-check>Conferi o frontend e a disponibilidade dos dois backends.</label>
+            </div>
+          </details>
+          <details class="guide-step">
+            <summary>Configure o cliente e as origens</summary>
+            <div class="guide-body">
+              <p>Edite o <code>.env</code> na raiz. O exemplo abaixo mantém as portas do projeto. Preserve o <code>CLIENT_SECRET</code> gerado pelo setup; a API e o BFF precisam usar o mesmo valor, com pelo menos 32 caracteres.</p>
+              <div class="guide-code">
+                <div class="guide-code-head"><span>.env · ajuste estes campos no arquivo existente</span><button type="button" class="code-copy" data-copy-target="env-code" aria-label="Copiar configuração local">Copiar</button></div>
+                <pre tabindex="0"><code id="env-code">WEB_ORIGIN=http://localhost:5173
+AUTH_API_URL=http://localhost:3001
+AUTH_ISSUER=http://localhost:3001
+CLIENT_ID=demo-web
+REDIRECT_URI=http://localhost:5173/auth/callback
+CHAIN_IDS=1,11155111
+STORAGE_DRIVER=memory
+SIGNING_KEY_FILE=.local/signing-key.json</code></pre>
+              </div>
+              <div class="table-wrap"><table><thead><tr><th>Campo</th><th>Como configurar</th></tr></thead><tbody>
+                <tr><td>WEB_ORIGIN</td><td>Origem exata do frontend, com protocolo e porta, sem caminho nem barra final. localhost e 127.0.0.1 são origens diferentes.</td></tr>
+                <tr><td>AUTH_API_URL</td><td>URL alcançável pelo navegador e pelo BFF. O SDK chama a API nessa URL para criar e verificar desafios.</td></tr>
+                <tr><td>AUTH_ISSUER</td><td>Identificador que a API inclui nas asserções. O BFF exige igualdade com esse valor ao validá-las.</td></tr>
+                <tr><td>REDIRECT_URI</td><td>URI registrada que pertence a WEB_ORIGIN. Neste protocolo ela vincula o desafio e a troca de código; o SDK conclui o login por JSON, sem navegar para /auth/callback.</td></tr>
+                <tr><td>CLIENT_ID / CHAIN_IDS</td><td>Identificador do cliente e redes aceitas nos dois backends. O executável atual configura um cliente por ambiente.</td></tr>
+              </tbody></table></div>
+              <p class="guide-note">Mantenha <code>CLIENT_SECRET</code>, <code>DATABASE_URL</code> e a chave privada ES256 no servidor. O frontend não precisa dessas variáveis; não as exponha com prefixo <code>VITE_</code>.</p>
+              <p>Ao trocar a porta ou o domínio, ajuste <code>WEB_ORIGIN</code>, <code>REDIRECT_URI</code> e a configuração do servidor Web. Reinicie a API e o BFF depois de editar o ambiente. Para cadastrar vários clientes por código, consulte <code>buildAuthApp({ clients: [...] })</code> em <a href="../core/apps/auth-api/src/app.ts">auth-api/src/app.ts</a>.</p>
+              <label class="guide-check"><input id="guide-check-2" type="checkbox" data-guide-check>Configurei origens, redes e credenciais iguais nos dois backends.</label>
+            </div>
+          </details>
+          <details class="guide-step">
+            <summary>Conecte o SDK ao BFF</summary>
+            <div class="guide-body">
+              <p>Dentro deste monorepo, o frontend de demonstração já declara <code>"@tcc/browser-sdk": "*"</code>. Ao rodar <code>npm ci</code> na raiz, o npm vincula o workspace. Em outro app Vite/TypeScript, mantenha uma cópia do repositório ao lado do app e instale o pacote local:</p>
+              <div class="guide-code">
+                <div class="guide-code-head"><span>Terminal · na raiz do seu outro frontend</span><button type="button" class="code-copy" data-copy-target="sdk-code" aria-label="Copiar instalação do SDK local">Copiar</button></div>
+                <pre tabindex="0"><code id="sdk-code">npm install "../tcc-decentralized-auth/core/packages/browser-sdk"</code></pre>
+              </div>
+              <p>Adapte o caminho à sua pasta. O pacote exporta TypeScript e tem <code>private: true</code>; não há um pacote público para instalar com <code>npm install @tcc/browser-sdk</code>. Reutilize o BFF do repositório com <code>npm run dev:bff</code> e a API com <code>npm run dev:api</code>, executados na raiz em terminais separados.</p>
+              <p>O SDK usa rotas relativas <code>/api/*</code> e cookies com <code>credentials: 'same-origin'</code>. No seu frontend Vite, adicione o proxy abaixo ao <code>server</code> da configuração existente. Ele já está presente no frontend de demonstração.</p>
+              <div class="guide-code">
+                <div class="guide-code-head"><span>vite.config.ts · trecho de defineConfig</span><button type="button" class="code-copy" data-copy-target="proxy-code" aria-label="Copiar proxy do BFF">Copiar</button></div>
+                <pre tabindex="0"><code id="proxy-code">server: {
+  port: 5173,
+  strictPort: true,
+  proxy: {
+    '/api': 'http://127.0.0.1:3002',
+  },
+},</code></pre>
+              </div>
+              <p class="guide-note">Preserve o header <code>Origin</code> no proxy. O BFF exige a origem configurada e corpo JSON nas mutações. A API fica em <code>AUTH_API_URL</code> e recebe chamadas do navegador com essa mesma origem.</p>
+              <p class="guide-result">Confira: <code>GET http://localhost:5173/api/session</code> deve retornar <code>{"authenticated":false}</code> antes do login. Se receber HTML, a rota caiu no frontend em vez de chegar ao BFF.</p>
+              <label class="guide-check"><input id="guide-check-3" type="checkbox" data-guide-check>Importei o SDK e confirmei que /api/session responde JSON pela origem do frontend.</label>
+            </div>
+          </details>
+          <details class="guide-step">
+            <summary>Implemente o botão de login</summary>
+            <div class="guide-body">
+              <p>Monte este componente na rota pública <code>/</code> do seu app React. Ele descobre carteiras, exige consentimento e inicia a assinatura após o clique. Depois de receber a sessão, navega para <code>/arearestrita</code>.</p>
+              <div class="guide-code">
+                <div class="guide-code-head"><span>WalletLogin.tsx · componente completo</span><button type="button" class="code-copy" data-copy-target="login-code" aria-label="Copiar componente de login">Copiar</button></div>
+                <pre tabindex="0"><code id="login-code">import { useEffect, useState } from 'react';
+import {
+  AuthenticationError, discoverWallets, getSession, signIn,
+  type AuthStep, type WalletOption,
+} from '@tcc/browser-sdk';
+
+const labels: Record&lt;AuthStep, string&gt; = {
+  connecting: 'Conectando à carteira…',
+  challenge: 'Preparando a mensagem…',
+  signing: 'Confirme a assinatura na carteira…',
+  verifying: 'Verificando a assinatura…',
+  session: 'Abrindo a sessão…',
+};
+
+export default function WalletLogin() {
+  const [wallets, setWallets] = useState&lt;WalletOption[]&gt;([]);
+  const [selectedId, setSelectedId] = useState('');
+  const [consent, setConsent] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [step, setStep] = useState&lt;AuthStep | null&gt;(null);
+  const [error, setError] = useState('');
+  const selected = wallets.find(w =&gt; w.id === selectedId) ?? wallets[0];
+
+  // React calls the returned cleanup when this component unmounts.
+  useEffect(() =&gt; discoverWallets(setWallets), []);
+  useEffect(() =&gt; {
+    let active = true;
+    getSession().then(session =&gt; {
+      if (active &amp;&amp; session.authenticated) {
+        window.location.replace('/arearestrita');
+      }
+    }).catch(() =&gt; {
+      if (active) setError('Não foi possível consultar a sessão.');
+    }).finally(() =&gt; { if (active) setChecking(false); });
+    return () =&gt; { active = false; };
+  }, []);
+
+  async function login() {
+    if (!selected || !consent || busy || checking) return;
+    setBusy(true);
+    setError('');
+    try {
+      const session = await signIn({
+        provider: selected.provider,
+        onStep: setStep,
+      });
+      if (session.authenticated) window.location.assign('/arearestrita');
+      else setError('A sessão não foi criada. Tente de novo.');
+    } catch (failure) {
+      setError(failure instanceof AuthenticationError
+        ? failure.message : 'Não foi possível entrar. Tente de novo.');
+    } finally {
+      setBusy(false);
+      setStep(null);
+    }
+  }
+
+  return (
+    &lt;section aria-labelledby="login-title" aria-busy={busy || checking}&gt;
+      &lt;h1 id="login-title"&gt;Entre com sua carteira&lt;/h1&gt;
+      &lt;label htmlFor="wallet-select"&gt;Carteira&lt;/label&gt;
+      &lt;select id="wallet-select" value={selected?.id ?? ''}
+        disabled={busy || checking || !wallets.length}
+        onChange={event =&gt; setSelectedId(event.target.value)}&gt;
+        {!wallets.length &amp;&amp; &lt;option value=""&gt;Nenhuma carteira detectada&lt;/option&gt;}
+        {wallets.map(w =&gt; &lt;option key={w.id} value={w.id}&gt;{w.name}&lt;/option&gt;)}
+      &lt;/select&gt;
+      &lt;p&gt;O login compartilha seu endereço público e a rede.&lt;/p&gt;
+      &lt;label&gt;
+        &lt;input type="checkbox" checked={consent} disabled={busy || checking}
+          onChange={event =&gt; setConsent(event.target.checked)} /&gt;
+        Concordo em compartilhar esses dados e assinar a mensagem.
+      &lt;/label&gt;
+      &lt;button type="button" disabled={!selected || !consent || busy || checking}
+        onClick={() =&gt; void login()}&gt;Conectar e assinar&lt;/button&gt;
+      &lt;p role="status"&gt;{checking ? 'Consultando sessão…' : step ? labels[step] : ''}&lt;/p&gt;
+      {error &amp;&amp; &lt;p role="alert"&gt;{error}&lt;/p&gt;}
+    &lt;/section&gt;
+  );
+}</code></pre>
+              </div>
+              <div class="guide-files"><a href="examples/WalletLogin.tsx" download>Baixar WalletLogin.tsx ↓</a><a href="../core/packages/browser-sdk/src/index.ts">Consultar a implementação do SDK ↗</a></div>
+              <p><code>signIn({ provider, onStep })</code> controla o fluxo: <code>connecting → challenge → signing → verifying → session</code>. O SDK usa descoberta EIP-6963 e fallback para <code>window.ethereum</code>. Você também pode fornecer um provider EIP-1193; o projeto não inclui um conector WalletConnect pronto.</p>
+              <p>A mudança de conta ou rede durante a tentativa cancela o login. Depois de criar a sessão, trocar a conta da extensão não encerra a sessão do app. Use <code>logout()</code> para isso.</p>
+              <label class="guide-check"><input id="guide-check-4" type="checkbox" data-guide-check>Assinei com uma conta de teste e recebi authenticated: true.</label>
+            </div>
+          </details>
+          <details class="guide-step">
+            <summary>Proteja a área privada e ofereça logout</summary>
+            <div class="guide-body">
+              <p>Monte o componente abaixo em <code>/arearestrita</code>. Consulte a sessão ao carregar a página, trate erros de rede e busque os dados pelo BFF. Você pode usar o roteador do seu app; a demonstração atual controla essa navegação em <a href="../frontend/demo-web/src/App.tsx">App.tsx</a>.</p>
+              <div class="guide-code">
+                <div class="guide-code-head"><span>RestrictedArea.tsx · componente completo</span><button type="button" class="code-copy" data-copy-target="session-code" aria-label="Copiar componente da área restrita">Copiar</button></div>
+                <pre tabindex="0"><code id="session-code">import { useEffect, useState } from 'react';
+import {
+  AuthenticationError, getPrivateResource, getSession, logout,
+  type AuthenticatedSession, type PrivateResource,
+} from '@tcc/browser-sdk';
+
+export default function RestrictedArea() {
+  const [session, setSession] = useState&lt;AuthenticatedSession | null&gt;(null);
+  const [resource, setResource] = useState&lt;PrivateResource | null&gt;(null);
+  const [loading, setLoading] = useState(true);
+  const [leaving, setLeaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() =&gt; {
+    let active = true;
+    async function load() {
+      try {
+        const current = await getSession();
+        if (!active) return;
+        if (!current.authenticated) {
+          window.location.replace('/');
+          return;
+        }
+        setSession(current);
+        const data = await getPrivateResource();
+        if (active) setResource(data);
+      } catch (failure) {
+        if (!active) return;
+        if (failure instanceof AuthenticationError &amp;&amp; failure.code === 'UNAUTHENTICATED') {
+          window.location.replace('/');
+          return;
+        }
+        setError('Não foi possível carregar os dados. Recarregue para tentar de novo.');
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    void load();
+    return () =&gt; { active = false; };
+  }, []);
+
+  async function leave() {
+    if (leaving) return;
+    setLeaving(true);
+    setError('');
+    try {
+      await logout();
+      window.location.replace('/');
+    } catch {
+      setError('Não foi possível encerrar a sessão. Tente de novo.');
+      setLeaving(false);
+    }
+  }
+
+  if (loading) return &lt;p role="status"&gt;Validando acesso…&lt;/p&gt;;
+  if (!session &amp;&amp; !error) return &lt;p role="status"&gt;Redirecionando…&lt;/p&gt;;
+  return (
+    &lt;section aria-labelledby="private-title"&gt;
+      &lt;h1 id="private-title"&gt;Área restrita&lt;/h1&gt;
+      {session &amp;&amp; &lt;p&gt;Conta: {session.user.accountId}&lt;/p&gt;}
+      {resource &amp;&amp; &lt;p&gt;{resource.message}&lt;/p&gt;}
+      {error &amp;&amp; &lt;p role="alert"&gt;{error}&lt;/p&gt;}
+      {error &amp;&amp; &lt;button type="button" onClick={() =&gt; window.location.reload()}&gt;Recarregar&lt;/button&gt;}
+      {session &amp;&amp; &lt;button type="button" disabled={leaving} onClick={() =&gt; void leave()}&gt;
+        {leaving ? 'Encerrando…' : 'Encerrar sessão'}
+      &lt;/button&gt;}
+    &lt;/section&gt;
+  );
+}</code></pre>
+              </div>
+              <div class="guide-files"><a href="examples/RestrictedArea.tsx" download>Baixar RestrictedArea.tsx ↓</a><a href="../core/apps/demo-bff/src/app.ts">Ver a proteção no backend ↗</a></div>
+              <p>Para um app React sem roteador, salve os dois componentes na mesma pasta deste <code>App.tsx</code> e importe seu export default no <code>main.tsx</code>. Os exemplos usam navegação com recarga completa; se o app já tem roteador, registre os componentes nas rotas dele.</p>
+              <div class="guide-code">
+                <div class="guide-code-head"><span>App.tsx · ligação das duas páginas</span><button type="button" class="code-copy" data-copy-target="routing-code" aria-label="Copiar ligação das rotas">Copiar</button></div>
+                <pre tabindex="0"><code id="routing-code">import WalletLogin from './WalletLogin';
+import RestrictedArea from './RestrictedArea';
+
+export default function App() {
+  return window.location.pathname === '/arearestrita'
+    ? &lt;RestrictedArea /&gt;
+    : &lt;WalletLogin /&gt;;
+}</code></pre>
+              </div>
+              <div class="guide-files"><a href="examples/App.tsx" download>Baixar App.tsx ↓</a></div>
+              <p><strong>Proteja os dados no servidor.</strong> O redirecionamento React cuida da navegação. Para cada recurso privado, valide a sessão no BFF e verifique a autorização sobre o recurso. O endpoint <code>GET /api/private</code> já retorna 401 sem sessão. Use a função local <code>readSession</code> dentro de <code>buildBffApp</code> como referência ao criar novas rotas; ela não é um helper exportado.</p>
+              <p>O BFF guarda a sessão e envia um cookie HttpOnly. Você consulta <code>user.accountId</code>, <code>address</code> e <code>chainId</code> pela resposta JSON, sem gravar tokens em localStorage. Se precisar de usuários no seu banco, vincule-os ao <code>accountId</code> validado pelo backend. A prova confirma controle da carteira, sem atribuir papel de administrador ou identidade civil.</p>
+              <p class="guide-note">No Vite, o cliente faz a verificação da página e o BFF protege a API. Ao servir o build pelo BFF, a rota HTTP <code>/arearestrita</code> também verifica o cookie e redireciona para <code>/</code> sem sessão. <code>REDIRECT_URI</code> não define a página pós-login.</p>
+              <p>A sessão expira após 30 minutos sem atividade ou oito horas desde a criação. <code>logout()</code> revoga a sessão e limpa os cookies; apenas remover conteúdo da tela não revoga o acesso.</p>
+              <label class="guide-check"><input id="guide-check-5" type="checkbox" data-guide-check>Conferi a sessão ao recarregar e neguei os dados privados após o logout.</label>
+            </div>
+          </details>
+          <details class="guide-step">
+            <summary>Valide a integração e resolva falhas</summary>
+            <div class="guide-body">
+              <p>Use uma conta EOA de teste e execute este roteiro no navegador do seu app:</p>
+              <ol>
+                <li>Antes do login, consulte <code>/api/session</code>: espere <code>authenticated: false</code>. Consulte <code>/api/private</code>: espere HTTP 401.</li>
+                <li>Autorize a assinatura, confirme <code>user.accountId</code> e abra <code>/arearestrita</code>. O recurso privado deve responder 200.</li>
+                <li>Recarregue a página. O BFF deve reconhecer o cookie da sessão.</li>
+                <li>Encerre a sessão. Recarregue a área privada e confirme outra resposta 401 na API.</li>
+                <li>Recuse uma assinatura e troque a rede durante outra tentativa. A interface deve mostrar o erro e permitir iniciar um novo fluxo.</li>
+              </ol>
+              <div class="guide-code">
+                <div class="guide-code-head"><span>Terminal · verificações do repositório Âncora</span><button type="button" class="code-copy" data-copy-target="test-code" aria-label="Copiar comandos de verificação">Copiar</button></div>
+                <pre tabindex="0"><code id="test-code">npm run typecheck
+npm test
+npm run build
+npx playwright install chromium
+npm run test:e2e</code></pre>
+              </div>
+              <p>Esses testes cobrem o repositório. Adicione o roteiro acima aos testes do seu app. Sem <code>TEST_DATABASE_URL</code>, a suíte ignora os testes PostgreSQL. Use uma base dedicada a testes; consulte <a href="../core/packages/storage/README.md">o adaptador de armazenamento</a>.</p>
+              <div class="table-wrap"><table><thead><tr><th>Erro / sintoma</th><th>O que conferir</th></tr></thead><tbody>
+                <tr><td>ORIGIN_REJECTED / ORIGIN_NOT_ALLOWED</td><td>Protocolo, host e porta de WEB_ORIGIN, a URI registrada e o Origin preservado pelo proxy.</td></tr>
+                <tr><td>JSON_REQUIRED / HTML no lugar de JSON</td><td>Content-Type: application/json nas mutações e encaminhamento de /api/* ao BFF.</td></tr>
+                <tr><td>unsupported_chain / CHAIN_NOT_ALLOWED</td><td>Rede selecionada na carteira e CHAIN_IDS nos dois backends.</td></tr>
+                <tr><td>user_rejected / wallet_pending</td><td>Permita tentar de novo após recusa. Para uma solicitação pendente, peça que a pessoa conclua ou cancele na extensão.</td></tr>
+                <tr><td>wallet_changed / INVALID_FLOW</td><td>Inicie um novo fluxo após mudança de carteira, expiração ou reinício do BFF em memória.</td></tr>
+                <tr><td>EXCHANGE_FAILED / AUTH_UNAVAILABLE</td><td>Disponibilidade da API, CLIENT_SECRET, REDIRECT_URI e validade de 60 segundos do código.</td></tr>
+                <tr><td>INVALID_ASSERTION</td><td>AUTH_ISSUER, CLIENT_ID (audience), relógios dos servidores e acesso do BFF ao JWKS da API.</td></tr>
+                <tr><td>UNAUTHENTICATED</td><td>Cookie, origem, sessão expirada ou BFF reiniciado. Solicite outro login.</td></tr>
+                <tr><td>Cannot find module @rollup/…</td><td>Dependência nativa do build ausente. Consulte a etapa Linux no workflow de CI; o lockfile desta versão veio do Windows.</td></tr>
+              </tbody></table></div>
+              <p>O servidor retorna erros como <code>{"error":{"code":"…","message":"…"}}</code>. O SDK expõe <code>AuthenticationError.code</code> e <code>message</code>. Exiba a mensagem sem registrar segredo, assinatura, cookies, código ou asserção em logs.</p>
+              <label class="guide-check"><input id="guide-check-6" type="checkbox" data-guide-check>Testei acesso negado, login, recarga, logout e cancelamento.</label>
+            </div>
+          </details>
+          <details class="guide-step">
+            <summary>Adapte o ambiente de hospedagem</summary>
+            <div class="guide-body">
+              <p>Para preparar um ambiente fora da máquina local, configure HTTPS e os endereços públicos. Este é um roteiro de adaptação do protótipo; a entrega ainda usa sessões do BFF em memória.</p>
+              <ul>
+                <li>Sirva o frontend e <code>/api/*</code> na mesma origem pública. Configure no proxy ou no BFF a rota <code>/arearestrita</code> e o atendimento dos arquivos do build.</li>
+                <li>Use <code>AUTH_API_URL</code> acessível tanto pelo navegador quanto pelo BFF. Cadastre <code>WEB_ORIGIN</code> e <code>REDIRECT_URI</code> exatas na API.</li>
+                <li>Com <code>NODE_ENV=production</code>, o executável da API exige PostgreSQL e URLs HTTPS. Configure <code>STORAGE_DRIVER=postgres</code>, a conexão do banco e execute <code>npm run db:migrate</code>.</li>
+                <li>O PostgreSQL persiste desafios e códigos da API. Para várias instâncias do BFF, implemente um adaptador persistente de <code>BffStore</code> para fluxos, sessões e controle de reutilização das asserções.</li>
+                <li>Mantenha chave ES256 e segredo do cliente fora do bundle. Planeje rotação de chaves e limites compartilhados antes de escalar.</li>
+              </ul>
+              <div class="guide-code">
+                <div class="guide-code-head"><span>Terminal · após configurar ambiente e persistência</span><button type="button" class="code-copy" data-copy-target="deploy-code" aria-label="Copiar comandos de build e inicialização">Copiar</button></div>
+                <pre tabindex="0"><code id="deploy-code">npm run db:migrate
+npm run build
+
+# Execute em processos ou terminais separados:
+npm run start:api
+npm run start:bff</code></pre>
+              </div>
+              <p>O BFF usa <code>frontend/demo-web/dist</code> como pasta de arquivos estáticos. Para servir outro build, configure <code>WEB_DIST_DIR</code>. Ele usa <code>HttpOnly</code>, <code>SameSite=Strict</code> e <code>Secure</code> para HTTPS. O backend precisa reconhecer a sessão em cada recurso protegido.</p>
+              <div class="guide-files"><a href="../core/docs/adr/001-siwe-eoa-bff.md">Decisão de arquitetura ↗</a><a href="../core/docs/threat-model.md">Modelo de ameaças ↗</a></div>
+              <label class="guide-check"><input id="guide-check-7" type="checkbox" data-guide-check>Revisei origens, cookies, persistência e a forma de servir as rotas no ambiente de destino.</label>
+            </div>
+          </details>
+        </div>
+      </section>
+      <section id="api" aria-labelledby="api-title">
+        <div class="section-head"><div><span class="eyebrow">04 / contrato</span><h2 id="api-title">Endpoints para integrar</h2></div><p>Filtre por caminho, método ou responsabilidade. A API usa a porta 3001; o frontend acessa o BFF por /api na sua própria origem.</p></div>
+        <div class="endpoint-tools"><input id="endpoint-filter" type="search" placeholder="Filtrar endpoints…" aria-label="Filtrar endpoints"></div>
+        <div class="table-wrap"><table><thead><tr><th>Método</th><th>Caminho</th><th>Camada</th><th>Para quê</th></tr></thead><tbody id="endpoint-body">
+          <tr><td><span class="pill">GET</span></td><td>/health/live</td><td>API</td><td>Verifica se o processo responde.</td></tr>
+          <tr><td><span class="pill">GET</span></td><td>/health/ready</td><td>API</td><td>Confere a disponibilidade do armazenamento.</td></tr>
+          <tr><td><span class="pill">GET</span></td><td>/api/health</td><td>BFF</td><td>Verifica o BFF pela origem do frontend.</td></tr>
+          <tr><td><span class="pill">POST</span></td><td>/api/auth/start</td><td>BFF</td><td>Cria fluxo, cookie HttpOnly e desafio PKCE. Entrada: {}.</td></tr>
+          <tr><td><span class="pill">POST</span></td><td>/v1/challenges</td><td>API</td><td>Recebe clientId, address, chainId, redirectUri e codeChallenge. Retorna mensagem SIWE e challengeId.</td></tr>
+          <tr><td><span class="pill">POST</span></td><td>/v1/verifications</td><td>API</td><td>Recebe challengeId, message e signature; verifica a assinatura e emite código de uso único.</td></tr>
+          <tr><td><span class="pill">POST</span></td><td>/api/auth/complete</td><td>BFF</td><td>Recebe flowId e code; troca o código no servidor e cria a sessão.</td></tr>
+          <tr><td><span class="pill">POST</span></td><td>/v1/exchanges</td><td>API · servidor</td><td>Exige clientId, clientSecret, code, codeVerifier e redirectUri. Retorna asserção; rejeita header Origin.</td></tr>
+          <tr><td><span class="pill">GET</span></td><td>/api/session</td><td>BFF</td><td>Retorna authenticated: false ou a sessão com user e expiresAt.</td></tr>
+          <tr><td><span class="pill">GET</span></td><td>/api/private</td><td>BFF</td><td>Retorna message e accountId; exige sessão válida (401 sem sessão).</td></tr>
+          <tr><td><span class="pill">POST</span></td><td>/api/auth/logout</td><td>BFF</td><td>Recebe {}; revoga a sessão e limpa os cookies.</td></tr>
+          <tr><td><span class="pill">GET</span></td><td>/arearestrita</td><td>BFF · build</td><td>Serve a página após verificar a sessão; redireciona para / sem cookie válido.</td></tr>
+          <tr><td><span class="pill">GET</span></td><td>/.well-known/jwks.json</td><td>API</td><td>Publica a chave para o BFF validar as asserções ES256.</td></tr>
+          <tr><td><span class="pill">GET</span></td><td>/openapi.json</td><td>API</td><td>Publica os schemas HTTP da API. Não inclui as rotas do BFF.</td></tr>
+        </tbody></table></div>
+        <p id="endpoint-empty" role="status" hidden>Nenhum endpoint corresponde ao filtro.</p>
+      </section>
       <section id="seguranca" aria-labelledby="security-title"><div class="section-head"><div><span class="eyebrow">05 / limites</span><h2 id="security-title">Decisões de segurança</h2></div><p>Abra os itens para ver a ameaça, a proteção atual e o próximo passo.</p></div><div class="accordion"><details class="threat" open><summary>Replay de uma assinatura</summary><div class="answer">A API inclui nonce, domínio, chain ID e expiração na mensagem. Ela consome o desafio na verificação. Próximo passo: armazenar nonces em infraestrutura compartilhada antes de escalar.</div></details><details class="threat"><summary>Roubo de código de autorização</summary><div class="answer">O código expira em 60 segundos, é de uso único e exige o codeVerifier do fluxo. O BFF troca o código no servidor, sem expor o segredo ao browser.</div></details><details class="threat"><summary>Carteiras de contrato ERC-1271</summary><div class="answer">A versão atual recupera assinaturas de contas EOA. Para smart wallets, implemente verificação on-chain via RPC, com allowlist de redes, timeout e política de disponibilidade.</div></details><details class="threat"><summary>Escala horizontal do BFF</summary><div class="answer">Fluxos e sessões ficam em memória nesta entrega. Antes de distribuir instâncias, mova esses estados para Redis ou PostgreSQL e configure rotação de chaves ES256.</div></details></div></section>
       <section id="glossario" aria-labelledby="glossary-title"><div class="section-head"><div><span class="eyebrow">06 / linguagem comum</span><h2 id="glossary-title">Glossário rápido</h2></div><p>Termos usados no código e no texto do TCC.</p></div><div class="glossary"><div class="term"><b>EOA</b><p>Conta controlada por uma chave privada, como uma conta comum da MetaMask.</p></div><div class="term"><b>SIWE</b><p>Sign-In with Ethereum: formato padronizado para autenticar uma carteira por mensagem assinada.</p></div><div class="term"><b>PKCE</b><p>Par code challenge/code verifier que amarra o início e a conclusão do fluxo.</p></div><div class="term"><b>BFF</b><p>Backend for Frontend: camada que guarda segredos e adapta a API para o navegador.</p></div><div class="term"><b>Nonce</b><p>Valor aleatório de uso único que impede reutilização de uma mensagem.</p></div><div class="term"><b>JWKS</b><p>Documento público com as chaves usadas para conferir as asserções ES256.</p></div></div><div class="footer"><span>Âncora · documentação técnica do TCC II</span><span><a href="../README.md">README</a> · <a href="../core/docs/VALIDACAO.md">validação</a> · atualizado em 2026</span></div></section>
     </main>
   </div>
   <script>
-    const details=[
-      ['O BFF abre um fluxo curto','O navegador chama o BFF. Ele cria um <code>flowId</code>, gera um <code>codeVerifier</code> e guarda os dois no servidor. A resposta contém apenas um cookie HttpOnly e o desafio PKCE.','POST /api/auth/start\n{ "flowId": "flow_…", "codeChallenge": "S256:…" }'],
-      ['A API monta a mensagem SIWE','O frontend envia conta, rede e origem. A API cria um nonce e devolve uma mensagem legível para a carteira. A validade padrão é de cinco minutos.','GET /auth/challenge\n?address=0x…&chainId=11155111'],
-      ['A carteira prova a posse','A pessoa confere domínio, conta e rede na carteira. A carteira assina os bytes originais da mensagem. Nenhuma transação vai para a rede.','wallet.signMessage(message)\n→ assinatura ECDSA'],
-      ['O BFF troca um código curto','A API verifica a assinatura EOA e emite um código de uso único. O BFF apresenta o código, o segredo do cliente e o verifier. A API devolve uma asserção ES256.','POST /api/auth/exchange\nCookie: flow=…\n{ code, codeVerifier }'],
-      ['A sessão libera o recurso','O BFF valida o cookie opaco e aplica os limites da sessão. Sem cookie, a área restrita responde 401. Encerrar sessão revoga o identificador atual.','GET /api/protected\n→ 200 { subject, network }']
+    const details = [
+      ['O BFF abre um fluxo curto', 'O BFF guarda flowId e codeVerifier no servidor. O navegador recebe o cookie HttpOnly do fluxo, flowId, codeChallenge e a configuração pública do cliente.',
+        'Navegador → BFF\nPOST /api/auth/start\nCorpo: {}\nResposta: { flowId, codeChallenge, clientId,\n  authApiUrl, redirectUri, chainIds }'],
+      ['A API monta a mensagem SIWE', 'O SDK envia a conta, a rede e o vínculo PKCE. A API valida a origem e cria uma mensagem com nonce e validade de cinco minutos.',
+        'Navegador → API\nPOST /v1/challenges\n{ clientId, address, chainId,\n  redirectUri, codeChallenge }\n→ 201 { challengeId, message, expiresAt }'],
+      ['A carteira prova a posse', 'A pessoa confere a mensagem na carteira. O SDK usa personal_sign com os bytes originais e envia a assinatura para verificação. A API retorna um código de uso único.',
+        'Navegador → carteira: personal_sign\nNavegador → API: POST /v1/verifications\n{ challengeId, message, signature }\n→ { code, expiresIn }'],
+      ['O BFF troca um código curto', 'O navegador entrega flowId e code ao BFF. O BFF recupera o verifier, troca o código com o segredo do cliente e valida a asserção via JWKS antes de criar a sessão.',
+        'Navegador → BFF: POST /api/auth/complete\n{ flowId, code } + cookie do fluxo\n\nBFF → API: POST /v1/exchanges\n{ clientId, clientSecret, code,\n  codeVerifier, redirectUri }\nSem header Origin; asserção restrita ao servidor.'],
+      ['A sessão libera o recurso', 'O BFF verifica o cookie opaco em /api/private e responde 401 sem sessão. O frontend encaminha a pessoa para /arearestrita. O logout revoga a sessão atual.',
+        'GET /api/session → { authenticated, user, expiresAt }\nGET /api/private → { message, accountId }\nPOST /api/auth/logout com {} → { authenticated: false }']
     ];
-    const detail=document.querySelector('#step-detail'); document.querySelectorAll('.step-btn').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.step-btn').forEach(x=>x.classList.remove('active'));btn.classList.add('active');const d=details[Number(btn.dataset.step)-1];detail.dataset.step=btn.dataset.step.padStart(2,'0');detail.querySelector('h3').innerHTML=d[0];detail.querySelector('p').innerHTML=d[1];detail.querySelector('.code').firstChild.textContent=d[2];}));
-    document.querySelectorAll('[data-copy]').forEach(btn=>btn.addEventListener('click',()=>{navigator.clipboard?.writeText(btn.dataset.copy);const old=btn.textContent;btn.textContent='copiado';setTimeout(()=>btn.textContent=old,1200)}));
-    const filter=document.querySelector('#endpoint-filter'); filter.addEventListener('input',()=>{const q=filter.value.toLowerCase();document.querySelectorAll('#endpoint-body tr').forEach(row=>row.hidden=!row.dataset.search.includes(q))});
-    const links=[...document.querySelectorAll('.nav a')]; const sections=links.map(x=>document.querySelector(x.getAttribute('href'))); const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){links.forEach(l=>l.classList.toggle('active',l.getAttribute('href')==='#'+e.target.id))}}),{rootMargin:'-20% 0px -65%'}); sections.forEach(s=>io.observe(s));
+    const detail = document.querySelector('#step-detail');
+    document.querySelectorAll('.step-btn').forEach(btn => btn.addEventListener('click', () => {
+      document.querySelectorAll('.step-btn').forEach(item => {
+        item.classList.toggle('active', item === btn);
+        item.setAttribute('aria-pressed', String(item === btn));
+      });
+      const d = details[Number(btn.dataset.step) - 1];
+      detail.dataset.step = btn.dataset.step.padStart(2, '0');
+      detail.querySelector('h3').textContent = d[0];
+      detail.querySelector('p').textContent = d[1];
+      document.querySelector('#flow-code').textContent = d[2];
+      document.querySelector('#flow-status').textContent = `Etapa ${btn.dataset.step}: ${d[0]}`;
+    }));
+    const normalized = text => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    document.querySelector('#endpoint-filter').addEventListener('input', event => {
+      const q = normalized(event.target.value.trim());
+      const rows = [...document.querySelectorAll('#endpoint-body tr')];
+      rows.forEach(row => { row.hidden = !normalized(row.textContent).includes(q); });
+      document.querySelector('#endpoint-empty').hidden = rows.some(row => !row.hidden);
+    });
+    const links = [...document.querySelectorAll('.nav a')];
+    const sections = links.map(link => document.querySelector(link.getAttribute('href')));
+    const io = new IntersectionObserver(entries => entries.forEach(entry => {
+      if (entry.isIntersecting) links.forEach(link => {
+        const active = link.getAttribute('href') === '#' + entry.target.id;
+        link.classList.toggle('active', active);
+        if (active) link.setAttribute('aria-current', 'location');
+        else link.removeAttribute('aria-current');
+      });
+    }), { rootMargin: '-10% 0px -45%' });
+    sections.forEach(section => io.observe(section));
   </script>
 </body>
 </html>

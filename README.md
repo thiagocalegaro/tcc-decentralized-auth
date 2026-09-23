@@ -1,6 +1,6 @@
 # Âncora · TCC II
 
-> **Documentação visual e interativa:** abra [`docs/index.html`](docs/index.html) no navegador para explorar a arquitetura, o fluxo de login, os endpoints e o modelo de ameaças.
+> **Documentação visual e interativa:** abra [`docs/index.html`](docs/index.html) no navegador para explorar a arquitetura, o fluxo de login, os endpoints e o modelo de ameaças. Para conectar sua aplicação, siga o [passo a passo de integração para devs](docs/index.html#integracao), com exemplos de login, sessão e logout, ou consulte o [guia em Markdown](core/docs/INTEGRACAO.md).
 
 Protótipo de autenticação por carteira Ethereum desenvolvido para o TCC de Thiago Augusto Calegaro Martin. Você conecta uma carteira, assina uma mensagem Sign-In with Ethereum (SIWE) e acessa uma área protegida por sessão.
 
