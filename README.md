@@ -1,5 +1,7 @@
 # Âncora · TCC II
 
+> **Documentação visual e interativa:** abra [`docs/index.html`](docs/index.html) no navegador para explorar a arquitetura, o fluxo de login, os endpoints e o modelo de ameaças.
+
 Protótipo de autenticação por carteira Ethereum desenvolvido para o TCC de Thiago Augusto Calegaro Martin. Você conecta uma carteira, assina uma mensagem Sign-In with Ethereum (SIWE) e acessa uma área protegida por sessão.
 
 Esta versão verifica contas EOA por recuperação da assinatura. O login acontece fora da blockchain e dispensa transação, saldo e taxa de rede. A chave privada fica na carteira. A API de verificação e as sessões da aplicação dependem dos servidores do projeto.
