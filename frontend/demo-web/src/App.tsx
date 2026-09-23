@@ -22,7 +22,7 @@ function Arrow() {
   return <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 12h15m-6-6 6 6-6 6" /></svg>;
 }
 function Mark() {
-  return <svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M12 3v18M7 8h10M5 14c0 4.5 3.1 7 7 7s7-2.5 7-7M5 14v3m14-3v3" /><circle cx="12" cy="3" r="1.8" /></svg>;
+  return <img className="brand-logo" src="/logo-ancora.png" alt="" aria-hidden="true" />;
 }
 function Check() {
   return <svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path d="m4 10 4 4 8-8" /></svg>;

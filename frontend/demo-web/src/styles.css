@@ -15,7 +15,7 @@ a { color: inherit; }
 .page-shell { width: min(1180px, calc(100% - 48px)); height: 100dvh; min-height: 620px; margin: auto; display: grid; grid-template-rows: 70px minmax(0, 1fr) 42px; }
 .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
 .brand { display: inline-flex; align-items: center; gap: 9px; text-decoration: none; font-family: var(--serif); font-size: 27px; font-weight: 700; letter-spacing: -1.5px; }
-.brand svg { color: var(--green); }
+.brand-logo { width: 34px; height: 34px; display: block; object-fit: cover; border-radius: 8px; box-shadow: 0 3px 10px rgba(23,97,68,.16); }
 .prototype, footer, .eyebrow { font-size: 9px; letter-spacing: .12em; text-transform: uppercase; }
 .prototype, footer { color: var(--muted); }
 .main-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(350px, 420px); gap: clamp(40px, 7vw, 88px); align-items: start; min-height: 0; padding: 46px 0 20px; }
