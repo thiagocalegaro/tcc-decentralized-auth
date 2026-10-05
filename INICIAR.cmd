@@ -3,23 +3,23 @@ setlocal
 cd /d "%~dp0"
 where node >nul 2>nul
 if errorlevel 1 (
-  echo Instale Node.js 22.12 ou superior antes de continuar.
+  echo Instale o Node.js 22.13 ou superior antes de continuar.
   pause
   exit /b 1
 )
-if not exist node_modules\tsx\package.json (
-  call npm.cmd ci
-  if errorlevel 1 goto failed
+if not exist node_modules (
+  call npm ci
+  if errorlevel 1 goto :error
 )
-call npm.cmd run setup
-if errorlevel 1 goto failed
-echo.
-echo Abra http://localhost:5173 no navegador com sua carteira.
-echo Use Ctrl+C para encerrar os servicos.
-call npm.cmd run dev
-if errorlevel 1 goto failed
+call npm run setup
+if errorlevel 1 goto :error
+call npm run build
+if errorlevel 1 goto :error
+echo Abra http://localhost:4201 e http://localhost:4202 no navegador.
+call npm start
+if errorlevel 1 goto :error
 exit /b 0
-:failed
-echo Nao foi possivel iniciar. Confira a mensagem acima e o README.md.
+:error
+echo Nao foi possivel iniciar. Confira a mensagem acima.
 pause
 exit /b 1

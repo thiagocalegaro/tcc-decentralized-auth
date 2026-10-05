@@ -1,31 +1,38 @@
-import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
+import type { Server } from 'node:http';
+import type { Express } from 'express';
+import { dataDir, readSettings, type ProviderSettings, type DemoSettings } from '../core/config.js';
+import { createProviderApp } from '../core/apps/provider/app.js';
+import { createDemoApp } from '../core/apps/demo/app.js';
 
-if (!existsSync('.env')) {
-  console.error('Execute npm run setup antes de iniciar.');
-  process.exit(1);
+const servers: Server[] = [];
+const closers: Array<() => void> = [];
+async function listen(app: Express, url: string) {
+  const port = Number(new URL(url).port || (url.startsWith('https:') ? 443 : 80));
+  const server = await new Promise<Server>((resolve, reject) => {
+    const server = app.listen(port, '127.0.0.1', () => resolve(server)); server.once('error', reject);
+  });
+  servers.push(server);
 }
-const tsx = fileURLToPath(import.meta.resolve('tsx/cli'));
-const vite = resolve('node_modules/vite/bin/vite.js');
-const specs = [
-  ['API', [tsx, 'core/apps/auth-api/src/main.ts']],
-  ['BFF', [tsx, 'core/apps/demo-bff/src/main.ts']],
-  ['Web', [vite, '--config', 'frontend/demo-web/vite.config.ts', '--host', '127.0.0.1']],
-] as const;
-let stopping = false;
-const children = specs.map(([name, args]) => {
-  const child = spawn(process.execPath, [...args], { stdio: 'inherit', windowsHide: true });
-  child.on('error', (error) => { console.error(`${name}: ${error.message}`); stop(1); });
-  child.on('exit', (code) => { if (!stopping) { console.error(`${name} encerrou (${code}).`); stop(code ?? 1); } });
-  return child;
-});
-function stop(code = 0) {
-  if (stopping) return;
-  stopping = true;
-  children.forEach((child) => child.kill('SIGTERM'));
-  process.exitCode = code;
+async function shutdown() {
+  await Promise.all(servers.map(server => new Promise<void>(resolve => { server.close(() => resolve()); server.closeIdleConnections(); })));
+  for (const close of closers) close();
 }
-process.on('SIGINT', () => stop());
-process.on('SIGTERM', () => stop());
+try {
+  const settings = readSettings<ProviderSettings>('provider.json');
+  if (new URL(settings.issuer).protocol !== 'http:') throw new Error('O launcher local requer HTTP loopback. Para HTTPS, consulte docs/OPERACAO.md.');
+  const provider = createProviderApp(settings, resolve(dataDir, 'provider.sqlite'));
+  closers.push(provider.close);
+  await listen(provider.app, settings.issuer);
+  for (const file of ['demo-a.json', 'demo-b.json']) {
+    const demoSettings = readSettings<DemoSettings>(file);
+    const demo = await createDemoApp(demoSettings, resolve(dataDir, demoSettings.database));
+    closers.push(demo.close);
+    await listen(demo.app, demoSettings.appUrl);
+    console.log(`${demoSettings.name}: ${demoSettings.appUrl}`);
+  }
+  console.log(`Login hospedado: ${settings.issuer}\nPortal de desenvolvedores: ${settings.issuer}/portal\nCtrl+C para encerrar. O projeto original não participa destes serviços.`);
+} catch (error) {
+  console.error(error instanceof Error ? error.message : 'Falha ao iniciar.'); await shutdown(); process.exitCode = 1;
+}
+for (const signal of ['SIGINT', 'SIGTERM'] as const) process.once(signal, () => { void shutdown().then(() => process.exit(0)); });
