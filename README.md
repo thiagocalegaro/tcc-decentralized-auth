@@ -1,97 +1,93 @@
-# Âncora · alternativa OIDC
+# Âncora — autenticação OIDC com carteira
 
-Implementação separada para comparar com o TCC II original. Os serviços desta pasta não usam o código em execução, as credenciais ou o banco do projeto anterior. Não inclui plugins de plataformas.
+Protótipo acadêmico de autenticação federada com carteiras EVM. O provedor Âncora verifica uma assinatura SIWE e atua como provedor OpenID Connect (OIDC). Uma aplicação cliente usa Authorization Code com PKCE para receber a identidade e criar sua própria sessão.
 
-## Iniciar no Windows
+Este repositório contém o backend do provedor, APIs do portal, a biblioteca Node.js, documentação e testes. **As interfaces web foram removidas**: não há frontend do login hospedado, portal visual ou telas das aplicações de demonstração neste repositório.
 
-Requisito: Node.js 22.13 ou superior. Nesta entrega, os testes usam Node.js 22 e Microsoft Edge. O módulo SQLite do Node 22 ainda emite um aviso experimental.
+## O que está incluído
 
-Abra `INICIAR.cmd` nesta pasta. Ou use PowerShell:
+- `core/apps/provider/`: provedor OIDC, verificação SIWE e API de cadastro/gestão de aplicações.
+- `core/apps/demo/`: backend de demonstração, proteção da área privada e vínculo da identidade com usuário local.
+- `core/packages/node-sdk/`: biblioteca de servidor `@ancora/node` para login OIDC e sessão local.
+- `docs/`: guias de integração, arquitetura, operação e verificação.
+- `scripts/`: geração da configuração local e inicialização dos serviços de demonstração.
+- `tests/`: testes de protocolo, persistência, cadastro e fluxos de navegador.
+- `.local/`: dados e segredos locais gerados na primeira configuração; ignorado pelo Git.
+
+## Estado deste checkout
+
+O código do servidor ainda referencia arquivos estáticos em `frontend/`. Como essa pasta não está no repositório, o checkout **não inicia a experiência completa**: `npm run build` e `npm start` dependem de arquivos ausentes. A interface gráfica do portal também não está disponível, embora as rotas da API do portal permaneçam no backend.
+
+Portanto, este repositório serve atualmente para consultar e desenvolver os componentes de backend, SDK e documentação. Para executar o fluxo ponta a ponta, é necessário fornecer/restaurar separadamente as interfaces esperadas pelo servidor ou adaptar o código para não depender delas. Os comandos abaixo são referências do projeto e não indicam que o fluxo completo esteja executável neste checkout.
+
+## Requisitos e configuração
+
+- Node.js 22.13 ou superior e npm.
+- SQLite integrado ao Node.js; a versão 22 pode exibir aviso experimental.
+
+Na raiz do projeto:
 
 ```powershell
 npm ci
 npm run setup
-npm run build
-npm start
 ```
 
-| Serviço | Endereço local |
-| --- | --- |
-| Login hospedado Âncora | http://localhost:4200 |
-| Portal do desenvolvedor | http://localhost:4200/portal |
-| Site A: Biblioteca | http://localhost:4201 |
-| Site B: Observatório | http://localhost:4202 |
-| Descoberta OIDC | http://localhost:4200/.well-known/openid-configuration |
+`npm run setup` cria `.local/` com chaves, credenciais e configurações próprias para o provedor e as duas aplicações de demonstração. Ele preserva a configuração existente quando executado novamente. Não publique nem compartilhe `.local/`.
 
-Use **localhost** nos três endereços. Não troque por `127.0.0.1` durante o login: as origens e os endereços de retorno precisam coincidir com o cadastro.
+O launcher previsto é `INICIAR.cmd`; no estado atual, ele também depende dos arquivos de frontend ausentes e não inicia com sucesso sem que essa dependência seja resolvida.
 
-## Testar com uma carteira
+## Fluxo de autenticação
 
-1. Abra a Biblioteca e clique em **Entrar com Âncora**.
-2. Confira o endereço do provedor e o site de destino.
-3. Escolha uma extensão de carteira EVM, conecte e assine a mensagem. Selecione Ethereum ou Sepolia na carteira. Você não precisa ter saldo.
-4. Autorize o compartilhamento do identificador, endereço e rede. O navegador retorna a `/arearestrita` da Biblioteca.
-5. Abra o Observatório no mesmo navegador e entre. O Âncora solicita consentimento para o segundo site, sem exigir outra assinatura enquanto a sessão SSO estiver ativa.
-6. Saia apenas do Observatório. A Biblioteca continua autenticada. Uma janela anônima não consegue abrir os recursos protegidos.
+1. A aplicação cliente redireciona o navegador ao provedor OIDC.
+2. O usuário conecta uma carteira EVM e assina uma mensagem SIWE sem executar transação ou pagar taxa de rede.
+3. O Âncora valida a assinatura e solicita consentimento para compartilhar a identidade com a aplicação.
+4. O provedor retorna um código de autorização. O backend do cliente o troca por tokens usando PKCE e suas credenciais confidenciais.
+5. O SDK valida a resposta, chama `onLogin` no servidor para vincular a identidade ao usuário local e mantém uma sessão em SQLite.
 
-O navegador descobre extensões via EIP-6963, com fallback para `window.ethereum`. Esta versão não inclui WalletConnect/QR, carteiras de contrato (ERC-1271), passkeys ou carteiras embutidas. Os testes simulam a interface de uma extensão, mas o servidor valida assinaturas criptográficas reais de chaves descartáveis.
+A identidade inclui `issuer`, `sub`, `address` e `chainId`. O vínculo recomendado no banco de cada aplicação é uma chave única `(issuer, sub)`. O segredo do cliente deve permanecer no backend, nunca no frontend.
 
-## Organização
+## Integração Node.js
 
-```text
-core/
-  apps/provider/           Provedor OIDC, SIWE e API do portal
-  apps/demo/               Backend dos sites e vínculo de usuários locais
-  packages/node-sdk/       Biblioteca Node.js @ancora/node
-frontend/
-  hosted-login/            Login e consentimento do Âncora
-  portal/                  Site público, cadastro e gestão de aplicações
-  demo/                    Interfaces públicas e área restrita dos sites
-  shared/                  CSS e logo
-docs/                      Integração, arquitetura e operação
-scripts/                   Configuração e execução local
-tests/                     Persistência, segurança e navegador
-.local/                    Chaves, credenciais e bancos locais (ignorado pelo Git)
+A biblioteca está em `core/packages/node-sdk/` e ainda não está publicada no npm. O exemplo abaixo mostra a configuração principal; consulte o guia do SDK para opções, rotas e limitações:
+
+```js
+import { createAncoraClient } from '@ancora/node';
+
+const auth = await createAncoraClient({
+  issuer: process.env.ANCORA_ISSUER,
+  clientId: process.env.ANCORA_CLIENT_ID,
+  clientSecret: process.env.ANCORA_CLIENT_SECRET,
+  appUrl: process.env.APP_URL,
+  database: './private/sessions.sqlite',
+  afterLogin: '/arearestrita',
+  onLogin: async identity => {
+    const user = await findOrCreateUser(identity); // No banco da aplicação
+    return { userId: user.id };
+  },
+});
 ```
 
-O backend entrega `/arearestrita` apenas após validar a sessão. Ele também protege `/api/private`; esconder uma página no frontend não substitui essa verificação.
+O backend deve chamar `auth.handle(req, res)` antes do roteamento do site e consultar `auth.session(req)` para proteger páginas e APIs. A rota de destino pós-login é configurável; `/arearestrita` não é imposta pelo protocolo.
 
-## Portal e vínculo com o usuário do site
+O painel visual que facilitava o cadastro pelo navegador não está incluído. A API de cadastro existe no servidor, mas precisa de uma interface cliente ou de outra ferramenta de administração para ser usada.
 
-Abra o portal, entre com sua carteira e clique em **Nova aplicação**. Cadastre nome, origem, callback e retorno de logout. O cadastro funciona imediatamente, sem terminal nem reinício. Guarde o segredo mostrado uma única vez; o painel permite editar a aplicação, gerar outro segredo e desativar novos logins. Cada carteira vê apenas seus cadastros.
+## Segurança e limites
 
-A biblioteca executa `onLogin(identity)` no backend depois de validar OIDC. Ela recebe `issuer`, `sub`, `address` e `chainId`. Sua função cria ou encontra o usuário do seu banco e retorna `{ userId }`, disponível na sessão local. As demos já fazem esse vínculo com SQLite e mostram o ID local ao lado da carteira. Outro login da mesma identidade reutiliza o usuário; cada site mantém seu próprio banco.
-
-`afterLogin` define a página de destino. `/arearestrita` é apenas o exemplo das demos, não uma rota obrigatória. O portal gera instruções e oferece um servidor Node completo para download. Consulte [o passo a passo](docs/INTEGRACAO.md).
-
-## O que mudou
-
-| Integração anterior | Esta alternativa |
-| --- | --- |
-| Carteira conectada dentro do site integrado | Carteira conectada no domínio do Âncora |
-| Protocolo próprio de desafio/verificação/troca | Authorization Code com PKCE S256 e OIDC |
-| Interface de carteira em cada site | Botão ou link para `/auth/login` |
-| Fluxo conduzido pelo SDK do navegador | Biblioteca Node conduz o fluxo OIDC e a sessão local |
-| Cada integração realiza seu login | Sessão SSO do provedor e consentimento por aplicação |
-
-O projeto continua dependendo do servidor Âncora para verificar logins e emitir identidades. A carteira mantém a chave privada. Isso combina identidade baseada em carteira com autenticação federada; não elimina a dependência de um provedor.
+- A chave privada da carteira não é enviada ao Âncora; a carteira assina localmente.
+- Login não envia transações, não movimenta ativos e não exige saldo.
+- As sessões de aplicação são próprias de cada site; sair do provedor não encerra automaticamente todas elas.
+- O projeto é um protótipo acadêmico, não uma implantação pronta para produção.
+- A validação disponível cobre contas EOA. WalletConnect/QR, carteiras de contrato ERC-1271, passkeys e carteiras embutidas não estão implementados.
+- Não foi executada uma suíte oficial de conformidade OIDC. Antes de uso real, são necessários revisão de segurança, HTTPS, gestão de segredos, operação multi-instância, monitoramento, política de privacidade e testes com carteiras reais.
 
 ## Documentação
 
-- [Integração de um terceiro site](docs/INTEGRACAO.md)
-- [Arquitetura, endpoints e modelo de segurança](docs/ARQUITETURA.md)
-- [Operação e limitações antes de produção](docs/OPERACAO.md)
+- [Guia de integração](docs/INTEGRACAO.md)
+- [Arquitetura, endpoints e segurança](docs/ARQUITETURA.md)
+- [Operação e limitações](docs/OPERACAO.md)
 - [Biblioteca Node.js](core/packages/node-sdk/README.md)
+- [Exemplo de servidor Node.js](docs/exemplo-node.mjs)
 - [Resultado da verificação](docs/VERIFICACAO.md)
 
-## Verificações
+Alguns guias descrevem telas da versão anterior. Como o frontend foi removido, siga as partes referentes ao backend e ao SDK; etapas que dependam do portal visual ou das páginas de demonstração não estão disponíveis neste checkout.
 
-```powershell
-npm run build
-npm test
-npm run test:e2e
-```
-
-Os testes de navegador iniciam serviços isolados nas portas 4400, 4401 e 4402, com novas chaves e bancos temporários. Fecham esses serviços ao concluir. O Playwright usa Edge por padrão; em sistemas sem Edge, ajuste `channel` em `playwright.config.ts` e instale o navegador escolhido. Os relatórios ficam em `playwright-report/` e as capturas em `test-results/`.
-
-O uso de uma biblioteca OIDC certificada não certifica esta implantação. Nenhuma suíte oficial de conformidade OIDC foi executada nesta entrega.
