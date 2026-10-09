@@ -3,12 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.13.0" },
-  "workspaces": ["core/packages/node-sdk"],
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "workspaces": [
+    "core/packages/node-sdk"
+  ],
   "scripts": {
     "setup": "tsx scripts/setup.ts",
-    "dev": "tsx scripts/dev.ts",
-    "start": "tsx scripts/dev.ts",
+    "dev": "tsx scripts/start.ts",
+    "start": "tsx scripts/start.ts",
     "typecheck": "tsc --noEmit",
     "build": "npm run typecheck && tsc -p core/packages/node-sdk/tsconfig.build.json && esbuild frontend/hosted-login/main.ts --bundle --format=esm --outfile=frontend/hosted-login/dist/main.js",
     "test": "tsx --test --test-concurrency=1 tests/*.test.ts",

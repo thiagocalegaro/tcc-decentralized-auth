@@ -14,10 +14,7 @@ export interface ProviderSettings {
   issuer: string; cookieKeys: string[]; jwks: { keys: JWK[] };
   chains: number[]; clients: RegisteredClient[];
 }
-export interface DemoSettings {
-  issuer: string; clientId: string; clientSecret: string; appUrl: string;
-  name: string; theme: 'library' | 'observatory'; peerUrl: string; database: string;
-}
+
 export function readSettings<T>(name: string): T {
   try { return JSON.parse(readFileSync(resolve(dataDir, name), 'utf8')) as T; }
   catch { throw new Error(`Configuração ${name} ausente ou inválida. Execute npm run setup.`); }

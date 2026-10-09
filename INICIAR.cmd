@@ -3,7 +3,7 @@ setlocal
 cd /d "%~dp0"
 where node >nul 2>nul
 if errorlevel 1 (
-  echo Instale o Node.js 22.13 ou superior antes de continuar.
+  echo Instale Node.js 22.13 ou superior.
   pause
   exit /b 1
 )
@@ -15,7 +15,7 @@ call npm run setup
 if errorlevel 1 goto :error
 call npm run build
 if errorlevel 1 goto :error
-echo Abra http://localhost:4201 e http://localhost:4202 no navegador.
+echo Abra http://localhost:4200/portal
 call npm start
 if errorlevel 1 goto :error
 exit /b 0

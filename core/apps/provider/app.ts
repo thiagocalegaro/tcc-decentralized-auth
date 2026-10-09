@@ -17,7 +17,7 @@ interface Challenge { message: string; address: Hex; chainId: number; nonce: str
 const random = () => randomBytes(32).toString('hex');
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
-export function createProviderApp(settings: ProviderSettings, database: string) {
+export function createProviderApp(settings: ProviderSettings, database: string, options: { trustLoopbackProxy?: boolean } = {}) {
   const issuer = validateUrl(settings.issuer, true);
   if (!settings.cookieKeys?.[0] || settings.cookieKeys[0].length < 32 || !settings.jwks.keys[0]?.d) throw new Error('Missing provider keys');
   if (!settings.chains.length || settings.chains.some(n => !Number.isSafeInteger(n) || n < 1)) throw new Error('Invalid chain list');
@@ -69,15 +69,26 @@ export function createProviderApp(settings: ProviderSettings, database: string) 
       `<p>O pedido de autenticação é inválido ou expirou. Volte ao site de origem e inicie o login novamente.</p><code>${escapeHtml(String(output.error ?? 'invalid_request'))}</code>`); },
   });
   provider.on('server_error', () => console.error('Falha interna no provedor OIDC. Nenhum dado de autenticação foi registrado.'));
+  // Koa must see HTTPS when TLS terminates at the local Caddy proxy.
+  provider.proxy = !!options.trustLoopbackProxy;
   const app = express();
   security(app, secure, () => registry.logoutOrigins());
+  if (options.trustLoopbackProxy) {
+    app.set('trust proxy', 'loopback');
+    // The production listener is loopback-only. Also enforce the boundary here.
+    app.use((req, res, next) => {
+      if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress ?? '')) {
+        res.status(403).end(); return;
+      }
+      next();
+    });
+  }
   app.use('/interaction', rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: 'draft-8', legacyHeaders: false }));
   app.use('/token', rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: 'draft-8', legacyHeaders: false }));
   app.use('/assets', express.static(resolve(projectRoot, 'frontend/shared')));
   app.use('/login-assets', express.static(resolve(projectRoot, 'frontend/hosted-login/dist')));
   app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'ancora-oidc' }));
   app.get('/', (_req, res) => res.sendFile(resolve(projectRoot, 'frontend/portal/home.html')));
-  app.get('/portal-public/config', (_req, res) => res.json({ demos: settings.clients.slice(0, 2).map(client => ({ name: client.client_name, url: new URL(client.redirect_uris[0]).origin })) }));
   app.use(portal.router);
 
   async function details(req: Request, res: Response) {

@@ -60,7 +60,7 @@ Os quatro últimos endpoints recebem POST JSON. Eles atendem somente a interface
 
 O site público fica em `/`; o portal, em `/portal`. O portal é um cliente OIDC confidencial interno, com callback `/portal/auth/callback`. Ele usa o mesmo login por carteira e mantém uma sessão local própria. A descoberta OIDC é carregada sob demanda, após o servidor começar a escutar.
 
-As tabelas `developers` e `applications` ficam no banco do provedor. Desenvolvedores são identificados por `(issuer, sub)`; cada aplicação possui um proprietário. O backend deriva esse proprietário da sessão, nunca do corpo da requisição. Clientes de sistema, incluindo as duas demos e o próprio portal, não pertencem a carteiras e não são editáveis pelo painel.
+As tabelas `developers` e `applications` ficam no banco do provedor. Desenvolvedores são identificados por `(issuer, sub)`; cada aplicação possui um proprietário. O backend deriva esse proprietário da sessão, nunca do corpo da requisição. O cliente interno do portal não pertence a uma carteira e não é editável pelo painel.
 
 O adaptador `Client` consulta o registro persistente em cada resolução. Assim, cadastro, edição, desativação e rotação de segredo não exigem reiniciar o provedor. Clientes antigos de `provider.json` são inseridos apenas se ainda não existirem. Não há endpoint de Dynamic Client Registration OIDC aberto: o cadastro usa a API autenticada do portal.
 
@@ -77,11 +77,11 @@ Escritas exigem Origin exata e token CSRF vinculado à sessão. IDs inexistentes
 
 ## Vínculo com a conta da aplicação
 
-O SDK chama `onLogin` depois de validar tokens e UserInfo e antes de criar a sessão local. A identidade inclui emissor, identificador, endereço e rede; a função devolve um `userId` do banco da aplicação. Nas demos, `app_users` usa UUID e uma restrição única `(issuer, subject)`. Falha no vínculo impede uma nova sessão. `afterLogin` permite escolher uma página local fixa; o padrão é `/`.
+O SDK chama `onLogin` depois de validar tokens e UserInfo e antes de criar a sessão local. A identidade inclui emissor, identificador, endereço e rede; a função devolve um `userId` do banco da aplicação. Falha no vínculo impede uma nova sessão. `afterLogin` permite escolher uma página local fixa; o padrão é `/`.
 
 ## SSO e logout
 
-O site A e o site B têm clientes OIDC distintos. Ao entrar no segundo site, uma sessão ativa no Âncora dispensa nova assinatura, mas o usuário ainda autoriza a nova aplicação. Concessões já registradas podem dispensar outra tela de consentimento. `prompt=login` exige nova assinatura.
+Cada aplicação possui um cliente OIDC distinto. Ao entrar em outra aplicação, uma sessão ativa no Âncora dispensa nova assinatura, mas o usuário ainda autoriza a nova aplicação. Concessões já registradas podem dispensar outra tela de consentimento. `prompt=login` exige nova assinatura.
 
 O logout local não apaga a sessão SSO. O logout do provedor encerra a sessão do Âncora e a sessão da aplicação que iniciou a saída. Esta versão não implementa back-channel logout para encerrar cookies locais de todos os sites.
 

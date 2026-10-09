@@ -1,9 +1,34 @@
 {
   "compilerOptions": {
-    "target": "ES2023", "module": "NodeNext", "moduleResolution": "NodeNext",
-    "strict": true, "esModuleInterop": true, "skipLibCheck": true,
-    "lib": ["ES2023", "DOM", "DOM.Iterable"], "types": ["node"], "noEmit": true
+    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "types": [
+      "node"
+    ],
+    "noEmit": true
   },
-  "include": ["core/**/*.ts", "scripts/**/*.ts", "frontend/**/*.ts", "tests/**/*.ts", "playwright.config.ts"],
-  "exclude": ["node_modules", "**/dist"]
+  "include": [
+    "core/**/*.ts",
+    "scripts/**/*.ts",
+    "frontend/**/*.ts",
+    "tests/**/*.ts",
+    "playwright.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/dist",
+    "core/apps/demo",
+    "scripts/demo-*",
+    "tests/demo-*",
+    "tests/e2e/auth.spec.ts"
+  ]
 }

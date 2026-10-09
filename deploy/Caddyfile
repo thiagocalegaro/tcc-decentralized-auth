@@ -1,0 +1,9 @@
+# Replace auth.example.com with the same hostname used in ISSUER_URL.
+auth.example.com {
+    reverse_proxy 127.0.0.1:4200 {
+        # Exactly one trusted proxy; replace any caller-supplied forwarding headers.
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto https
+        header_up X-Forwarded-Host {host}
+    }
+}

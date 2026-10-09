@@ -1,59 +1,26 @@
-# Verificação do portal e da função pós-login · 28/09/2026
+# Verificação — 09/10/2026
 
-Testes executados em Node.js 22.23.1 e Microsoft Edge, em ambiente isolado. As carteiras são descartáveis; nenhuma carteira pessoal foi usada.
+Ambiente local: Windows, Node.js 22.23.1 e Microsoft Edge. Foi criada uma cópia apenas dos arquivos versionados, sem os diretórios, scripts e testes específicos das demonstrações. As dependências já instaladas foram reutilizadas nessa verificação.
 
-| Verificação | Resultado |
-| --- | --- |
-| TypeScript, build do SDK e bundle | Passou |
-| Persistência, registro e protocolo | 10 testes passaram |
-| Navegador, incluindo o portal | 10 testes passaram na execução final (51,6 s) |
-| JavaScript do portal e exemplo Node | Checagem sintática passou |
-| Desktop e celular | Páginas renderizam; sem transbordamento horizontal a 320 px |
-| Segredo no painel | Exibido na criação/rotação; ausente das consultas e do armazenamento do navegador |
+## Cobertura
 
-## Percurso comprovado
+Resultado: build concluído, 13 testes de backend/protocolo e 3 testes de navegador passaram na cópia sem demos.
 
-**História:** o desenvolvedor entra por carteira, cadastra um site, configura seu backend e recebe uma identidade verificada para criar uma conta local.
+- Build TypeScript, compilação do SDK e bundle do login hospedado.
+- Testes de configuração: primeira inicialização sem clientes de demonstração, preservação das chaves, recusa de mudança de issuer e de configuração corrompida.
+- Configuração de produção: issuer HTTPS explícito.
+- Proxy local: descoberta OIDC, cookies Secure/HttpOnly e redirecionamento para a origem HTTPS.
+- Protocolo: assinatura SIWE, PKCE, consumo único do código e rejeição de desafios expirados.
+- SDK: identidade validada, callback onLogin e falha fechada quando o vínculo de usuário é recusado.
+- Registro: isolamento entre proprietários, rotação e desativação, validação de retornos.
+- SQLite: expiração, consumo atômico, revogação e persistência após reabrir o banco.
+- Portal no navegador: login, consentimento, cadastro, edição, rotação, desativação, CSRF e logout.
+- Interfaces do Âncora em desktop e celular, incluindo a identidade visual.
 
-| Limite do fluxo | Evidência |
-| --- | --- |
-| Navegador → login | Assinatura SIWE real com chave efêmera, consentimento e callback |
-| Portal → API | Cadastro e edição pelo formulário; nome reaparece após recarregar |
-| API → banco | Proprietário vinculado à sessão; persistência confirmada após reabrir SQLite |
-| Banco → OIDC | Cliente recém-criado funciona sem reiniciar; rotação invalida segredo anterior |
-| OIDC → backend do site | ID Token/UserInfo validados; onLogin recebe identidade imutável |
-| Backend → conta local | UUID estável em logins sucessivos; IDs independentes em cada site |
-| Resposta → navegador | Redirecionamento configurado para /minha-conta; sessão com userId e carteira |
+## Limites da verificação
 
-A criação de cliente pela interface e seu aceite imediato pelo endpoint de autorização foram testados no navegador. Um teste de integração separado executa o fluxo completo com um cliente criado durante a execução até a sessão no backend. O download do exemplo Node entrega código sem credenciais; o arquivo tem sintaxe validada, mas não recebeu uma execução ponta a ponta separada.
+Os testes usam carteiras simuladas com assinaturas reais de chaves descartáveis. O teste de proxy injeta cabeçalhos de um proxy local; não substitui a verificação do Caddy, DNS e certificado em uma VPS.
 
-## Casos de segurança
+A configuração systemd e o Caddyfile estão preparados para Linux, mas a implantação pública ainda depende de VPS e domínio. Não foram executados testes de carga, conformidade oficial OIDC ou homologação com todas as extensões de carteira.
 
-- Carteira de outro desenvolvedor não consulta, edita, gira segredo ou desativa aplicações alheias; respostas 404, como para IDs inexistentes.
-- Anônimos recebem 401; escritas sem CSRF ou com Origin incorreta recebem 403.
-- Clientes de sistema ficam fora da gestão das carteiras.
-- URLs HTTP públicas, credenciais em URLs, caminhos externos, codificados ou com navegação relativa são recusados.
-- O segredo antigo deixa de completar login após a rotação. Aplicação desativada não autoriza novos fluxos.
-- Falha em onLogin impede a emissão de uma nova sessão.
-- Callback falsificado, falta de cookie de vínculo, PKCE incorreto, código reutilizado, mensagem alterada, assinante incorreto, desafio expirado e replay concorrente continuam recusados.
-- Sessões locais independentes, SSO entre sites, logout local e logout do provedor continuam funcionando.
-
-## Verificação visual
-
-Capturas em `test-results/`: `ancora-home.png`, `portal-aplicacao.png`, `portal-integracao.png` e `portal-mobile.png`. O guia é expansível para manter a visão de gestão compacta. O percurso de sucesso não produziu erros JavaScript; respostas 401 esperadas da consulta anônima são tratadas pela interface.
-
-A primeira tentativa no Edge parou na captura de uma página já carregada. O teste passou após configurar o navegador headless sem GPU; duas execuções completas subsequentes passaram. Os avisos de SQLite experimental no Node 22 continuam presentes.
-
-## Limites
-
-Não houve homologação com extensão pessoal, carteira móvel, múltiplos hosts nem suíte oficial de conformidade OIDC. O protótipo não verifica posse de domínio, não recupera carteira e não encerra sessões locais de terceiros ao desativar um cliente. Consulte [operação](OPERACAO.md).
-
-## Repetir
-
-```powershell
-npm run build
-npm test
-npm run test:e2e
-```
-
-Os testes usam as portas 4400–4402 e bancos temporários. Não escrevem nos dados das aplicações em 4200–4202. Abra `playwright-report/index.html` para o relatório detalhado.
+Os testes de navegador iniciam apenas o provedor na porta 4400, com chaves e bancos temporários. Não dependem de aplicações de demonstração nem alteram a configuração local em .local.

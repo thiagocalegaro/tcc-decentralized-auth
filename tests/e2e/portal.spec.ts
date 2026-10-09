@@ -107,7 +107,7 @@ test('public site and portal entry load on desktop/mobile without exposing priva
   for (const size of [{ width: 1366, height: 768 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(size); await page.goto(OP);
     await expect(page.getByRole('link', { name: 'Abrir portal do desenvolvedor' })).toBeVisible();
-    await expect(page.locator('#demos a')).toHaveCount(2);
+    await expect(page.locator('#demos')).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     if (size.width > 1000) await page.screenshot({ path: 'test-results/ancora-home.png' });
     await page.getByRole('link', { name: 'Abrir portal do desenvolvedor' }).click();

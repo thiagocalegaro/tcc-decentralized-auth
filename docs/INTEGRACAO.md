@@ -4,7 +4,7 @@ O cadastro é feito no portal. A aplicação ainda precisa de um backend para pr
 
 ## 1. Cadastrar pelo portal
 
-1. Abra http://localhost:4200/portal e entre com sua carteira EVM.
+1. Abra `<issuer>/portal` e entre com sua carteira EVM. Localmente, o endereço é http://localhost:4200/portal; na VPS, use seu domínio HTTPS.
 2. Clique em **Nova aplicação** e informe nome e origem do site, por exemplo `http://localhost:4300`.
 3. Mantenha `/auth/callback` e `/` como caminhos de callback e retorno de logout, respectivamente.
 4. Guarde o **client secret** mostrado uma única vez. O **client ID** permanece disponível no painel.
@@ -12,7 +12,7 @@ O cadastro é feito no portal. A aplicação ainda precisa de um backend para pr
 
 O cadastro entra em vigor imediatamente. Não exige comando nem reinício do Âncora. Cada carteira administra apenas suas aplicações. Não há recuperação de acesso se perder a carteira.
 
-HTTPS é obrigatório fora de loopback. Retornos são exatos, da mesma origem cadastrada, sem curingas. O protótipo não verifica propriedade do domínio. Nome de aplicação não é um selo de confiança; confira sempre o domínio na tela de consentimento.
+No provedor hospedado com NODE_ENV=production, as aplicações cadastradas precisam usar HTTPS, inclusive para testes. HTTP loopback é aceito pelo cadastro apenas no ambiente de desenvolvimento. Retornos são exatos, da mesma origem cadastrada, sem curingas. O protótipo não verifica propriedade do domínio. Nome de aplicação não é um selo de confiança; confira sempre o domínio na tela de consentimento.
 
 ## 2. Instalar a biblioteca local
 
@@ -25,7 +25,7 @@ npm run pack:sdk
 Na pasta do seu site:
 
 ```powershell
-npm install "C:\Users\get10\projetos IA\TCC II - Alternativa\.local\ancora-node-0.1.0.tgz"
+npm install "/caminho/para/ancora/.local/ancora-node-0.1.0.tgz"
 ```
 
 O pacote `@ancora/node` ainda não está publicado no npm. Se instalou uma edição anterior, instale o arquivo recém-gerado novamente.
@@ -106,7 +106,7 @@ Nesta versão, a mesma carteira em redes diferentes tem `sub` diferente. Nome, e
 - `/auth/callback`: rota técnica da biblioteca; recebe o código e valida a autenticação.
 - `onLogin`: função interna do backend; cria/encontra o usuário local.
 - `afterLogin`: destino local após o sucesso, por exemplo `/minha-conta`.
-- `/arearestrita`: apenas o destino escolhido pelas duas demonstrações; não é exigido pelo Âncora.
+- `/arearestrita`: exemplo de destino escolhido pela aplicação; não é exigido pelo Âncora.
 
 O padrão de `afterLogin` agora é `/`. Projetos que dependiam do antigo retorno implícito devem configurar `afterLogin: '/arearestrita'`. Não existe parâmetro de URL para escolher livremente um destino externo.
 
@@ -132,7 +132,7 @@ app.get('/api/private', (req, res) => {
 });
 ```
 
-Feche `auth.close()` quando encerrar o servidor. As demos em `core/apps/demo` mostram o vínculo persistente com SQLite, cabeçalhos de segurança e limites de requisição.
+Feche `auth.close()` quando encerrar o servidor. O arquivo `docs/exemplo-node.mjs` mostra um vínculo persistente com SQLite.
 
 Um link basta no frontend:
 

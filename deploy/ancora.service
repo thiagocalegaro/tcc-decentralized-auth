@@ -1,0 +1,28 @@
+[Unit]
+Description=Ancora OIDC provider and developer portal
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=ancora
+Group=ancora
+WorkingDirectory=/opt/ancora
+EnvironmentFile=/etc/ancora/ancora.env
+ExecStart=/usr/bin/node --import tsx scripts/start.ts
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+UMask=0077
+StateDirectory=ancora
+StateDirectoryMode=0700
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/ancora
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
