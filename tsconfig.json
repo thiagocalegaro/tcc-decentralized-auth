@@ -21,14 +21,10 @@
     "scripts/**/*.ts",
     "frontend/**/*.ts",
     "tests/**/*.ts",
-    "playwright.config.ts"
+    "playwright*.config.ts"
   ],
   "exclude": [
     "node_modules",
-    "**/dist",
-    "core/apps/demo",
-    "scripts/demo-*",
-    "tests/demo-*",
-    "tests/e2e/auth.spec.ts"
+    "**/dist"
   ]
 }

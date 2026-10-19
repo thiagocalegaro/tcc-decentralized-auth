@@ -1,5 +1,11 @@
 # Arquitetura da alternativa
 
+## Ambiente local centralizado
+
+O `compose.yaml` da raiz executa um serviço com três aplicativos Express no mesmo processo Node: Âncora/portal em 4200, Biblioteca em 4201 e Observatório em 4202. O navegador e as chamadas OIDC dos backends usam o mesmo issuer `http://localhost:4200`; não há tradução de URLs internas ou alteração da validação do emissor para acomodar Docker. Cada demo mantém banco, cookies e vínculo de usuários próprios. O volume `/data` persiste as configurações e os bancos separados. Esse arranjo simplifica a demonstração local, sem simular isolamento de processos ou hosts.
+
+As interfaces estão em `frontend/`; o provedor, os backends das demos e o SDK estão em `core/`. O launcher `npm start` permanece disponível para executar somente o provedor e o portal.
+
 ## Caminho do login
 
 ```text

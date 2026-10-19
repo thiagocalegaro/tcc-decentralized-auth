@@ -1,0 +1,36 @@
+name: ancora
+
+services:
+  ancora:
+    build: .
+    init: true
+    environment:
+      NODE_ENV: development
+      ANCORA_DATA_DIR: /data
+      ANCORA_BIND_HOST: 0.0.0.0
+      ISSUER_URL: http://localhost:4200
+      DEMO_A_URL: http://localhost:4201
+      DEMO_B_URL: http://localhost:4202
+    ports:
+      - "127.0.0.1:4200:4200"
+      - "127.0.0.1:4201:4201"
+      - "127.0.0.1:4202:4202"
+    volumes:
+      - ancora-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    stop_grace_period: 15s
+    healthcheck:
+      test: ["CMD", "node", "scripts/healthcheck.mjs"]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 5
+
+volumes:
+  ancora-data:

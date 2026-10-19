@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { createHash } from 'node:crypto';
+const OP = process.env.ANCORA_E2E_PROVIDER_URL ?? 'http://localhost:4400';
 
 async function verifyBrand(page: Page) {
   const icon = page.locator('link[rel="icon"]');
@@ -17,16 +18,16 @@ async function verifyBrand(page: Page) {
 }
 
 test('new emblem is served unchanged as logo and favicon across all public surfaces', async ({ page }) => {
-  for (const url of ['http://localhost:4400/', 'http://localhost:4400/portal']) {
+  for (const url of [`${OP}/`, `${OP}/portal`]) {
     await page.goto(url); await verifyBrand(page);
   }
   await page.getByRole('link', { name: 'Entrar com minha carteira', exact: true }).click();
-  await expect(page).toHaveURL(/localhost:4400\/interaction\//);
+  await expect(page).toHaveURL(url => url.origin === OP && url.pathname.startsWith('/interaction/'));
   await verifyBrand(page);
-  await page.goto('http://localhost:4400/authorize?client_id=unknown');
+  await page.goto(`${OP}/authorize?client_id=unknown`);
   await expect(page.getByRole('heading', { name: 'Não foi possível continuar' })).toBeVisible();
   await verifyBrand(page);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('http://localhost:4400/portal'); await verifyBrand(page);
+  await page.goto(`${OP}/portal`); await verifyBrand(page);
   await page.screenshot({ path: 'test-results/nova-logo-portal-mobile.png' });
 });

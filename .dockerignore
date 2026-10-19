@@ -1,0 +1,16 @@
+.git
+node_modules
+**/node_modules
+.local
+**/.local
+**/dist
+.env
+.env.*
+*.sqlite*
+**/*.sqlite*
+*.log
+*.tgz
+test-results
+playwright-report
+deploy
+frontend/portal/assets/home.js

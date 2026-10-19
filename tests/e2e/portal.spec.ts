@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { wallet } from './wallet.js';
-const OP = 'http://localhost:4400';
+const OP = process.env.ANCORA_E2E_PROVIDER_URL ?? 'http://localhost:4400';
 async function enter(page: Page) {
   await page.goto(`${OP}/portal`);
   await page.getByRole('link', { name: 'Entrar com minha carteira' }).click();

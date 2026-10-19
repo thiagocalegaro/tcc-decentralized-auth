@@ -13,10 +13,13 @@
     "setup": "tsx scripts/setup.ts",
     "dev": "tsx scripts/start.ts",
     "start": "tsx scripts/start.ts",
+    "dev:demos": "tsx scripts/demo-start.ts",
     "typecheck": "tsc --noEmit",
     "build": "npm run typecheck && tsc -p core/packages/node-sdk/tsconfig.build.json && esbuild frontend/hosted-login/main.ts --bundle --format=esm --outfile=frontend/hosted-login/dist/main.js",
     "test": "tsx --test --test-concurrency=1 tests/*.test.ts",
     "test:e2e": "npm run build && playwright test",
+    "test:e2e:demos": "npm run build && playwright test --config playwright.demo.config.ts",
+    "test:e2e:compose": "playwright test --config playwright.compose.config.ts",
     "register:client": "tsx scripts/register-client.ts",
     "pack:sdk": "npm run build && npm pack --workspace @ancora/node --pack-destination .local"
   },
