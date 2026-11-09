@@ -10,6 +10,7 @@ node_modules
 **/*.sqlite*
 *.log
 *.tgz
+core/packages/releases
 test-results
 playwright-report
 deploy

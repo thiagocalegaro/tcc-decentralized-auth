@@ -1,4 +1,5 @@
 import { renderIntegrationGuides } from './integration-guides.js';
+import { renderSdkPicker } from './sdk-picker.js';
 const $ = selector => document.querySelector(selector);
 const form = $('#application-form');
 let state = { me: null, applications: [], selected: null, editing: false };
@@ -35,6 +36,7 @@ function detail(id) {
   $('#editor').hidden = true; $('#app-detail').hidden = false; renderList();
   $('#detail-title').textContent = app.name; $('#app-state').textContent = app.enabled ? 'Aplicação ativa' : 'Aplicação desativada';
   $('#client-id').textContent = app.id; $('#redirect-uri').textContent = app.redirectUri; $('#logout-uri').textContent = app.logoutUri;
+  renderSdkPicker();
   renderIntegrationGuides(app, state.me.issuer);
   $('#toggle-app').textContent = app.enabled ? 'Desativar aplicação' : 'Reativar aplicação';
   const base = new URL(app.redirectUri).pathname.replace(/\/callback$/, '');

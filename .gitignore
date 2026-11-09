@@ -4,6 +4,7 @@ node_modules/
 test-results/
 playwright-report/
 *.tgz
+/core/packages/releases/
 .env
 .env.*
 !.env.example

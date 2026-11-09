@@ -109,6 +109,10 @@ A API e o backend ficam em `core/`; as interfaces ficam em `frontend/`. O backen
 
 ## Integrar sua aplicação
 
+Na página de uma aplicação cadastrada, o painel **SDKs de integração** oferece pacotes locais para Node.js, Python/Flask, PHP e Java/Spring Boot. Selecione a tecnologia, baixe o pacote e siga os passos de instalação e o README incluído. O projeto não publica esses pacotes em npm, PyPI, Packagist ou Maven Central.
+
+O comando `npm run build` gera os downloads em `core/packages/releases/` e requer `tar` no PATH. Os três pacotes novos encapsulam clientes OIDC; a aplicação continua responsável pela sessão local, pelas permissões e pelo vínculo com seus usuários. Os guias de integração direta permanecem disponíveis no portal.
+
 1. Acesse o portal, entre com sua carteira e cadastre origem, callback e retorno de logout do site.
 2. Guarde o client ID e o segredo no backend da aplicação.
 3. Use o [SDK Node.js](core/packages/node-sdk/README.md) ou um cliente OIDC compatível, com PKCE S256 e escopos `openid wallet`.

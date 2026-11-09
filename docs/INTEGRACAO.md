@@ -1,6 +1,8 @@
 # Integrar um site ao Âncora
 
-O cadastro é feito no portal. A aplicação ainda precisa de um backend para proteger o segredo, receber o callback e criar sua sessão. Esta entrega oferece uma biblioteca Node.js 22.13+; clientes OIDC em outras linguagens também podem usar o provedor. Não há plugins de plataformas.
+O cadastro é feito no portal. A aplicação precisa de um backend para proteger o segredo, receber o callback e criar sua sessão. Na seção **SDKs de integração**, baixe o pacote para Node.js 22.13+, Python/Flask, PHP ou Java/Spring Boot. Cada pacote inclui instruções de instalação e uso; os três adaptadores novos delegam a sessão local à aplicação ou ao framework. Você também pode configurar um cliente OIDC compatível sem instalar um SDK do Âncora.
+
+As etapas a seguir detalham a integração em Node.js. Os downloads são gerados por `npm run build`, com `tar` disponível no PATH.
 
 ## 1. Cadastrar pelo portal
 

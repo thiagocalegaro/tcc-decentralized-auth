@@ -46,6 +46,22 @@ export function createPortal(registry: ClientRegistry, issuer: string, csrfKey: 
   });
   router.get('/portal/api/me', (_req, res) => res.json({ user: res.locals.developer, csrf: csrf(res.locals.developer), issuer }));
   router.get('/portal/api/example', (_req, res) => res.download(resolve(projectRoot, 'docs/exemplo-node.mjs'), 'server.mjs'));
+  const sdkArchives = new Map([
+    ['node', 'ancora-node-0.1.0.tgz'],
+    ['python', 'ancora-flask-0.1.0.tar.gz'],
+    ['php', 'ancora-php-0.1.0.tar.gz'],
+    ['java', 'ancora-spring-0.1.0.tar.gz'],
+  ]);
+  router.get('/portal/api/sdk/:language', (req, res, next) => {
+    const archive = sdkArchives.get(req.params.language);
+    if (!archive) return res.status(404).json({ error: 'SDK não encontrado.' });
+    res.download(resolve(projectRoot, 'core/packages/releases', archive), archive, error => {
+      if (!error) return;
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT' && !res.headersSent)
+        return res.status(503).json({ error: 'Pacote indisponível. Execute npm run build no servidor do Âncora.' });
+      next(error);
+    });
+  });
   router.get('/portal/api/applications', (_req, res) => res.json({ applications: registry.list(res.locals.developer.userId) }));
   router.get('/portal/api/applications/:id', (req, res) => res.json({ application: registry.get(String(req.params.id), res.locals.developer.userId) }));
   router.post('/portal/api/applications', (req, res) => res.status(201).json(registry.create(res.locals.developer.userId, req.body)));

@@ -55,6 +55,30 @@ test('portal provisions through UI, shows secret once, edits, rotates and disabl
   await page.getByLabel('Nome da aplicação').fill('Acervo da universidade');
   await page.getByRole('button', { name: 'Salvar alterações' }).click();
   await expect(page.locator('#detail-title')).toHaveText('Acervo da universidade');
+  const picker = page.getByRole('region', { name: 'SDKs de integração' });
+  for (const [label, slug, archive, snippet] of [
+    ['Node.js', 'node', 'ancora-node-0.1.0.tgz', 'createAncoraClient'],
+    ['Python / Flask', 'python', 'ancora-flask-0.1.0.tar.gz', 'from ancora_flask import AncoraClient'],
+    ['PHP', 'php', 'ancora-php-0.1.0.tar.gz', 'new Client('],
+    ['Java / Spring Boot', 'java', 'ancora-spring-0.1.0.tar.gz', 'AncoraLogin.configure'],
+  ]) {
+    const tab = picker.getByRole('button', { name: label, exact: true });
+    await tab.click();
+    await expect(tab).toHaveAttribute('aria-pressed', 'true');
+    await expect(picker).toContainText(snippet);
+    await expect(picker).not.toContainText(created.clientSecret);
+    await expect(picker.getByRole('link', { name: 'Baixar SDK' })).toHaveAttribute('href', '/portal/api/sdk/' + slug);
+    const sdk = await page.request.get(OP + '/portal/api/sdk/' + slug);
+    expect(sdk.ok()).toBe(true);
+    expect(sdk.headers()['content-disposition']).toContain(archive);
+    expect((await sdk.body()).subarray(0, 2)).toEqual(Buffer.from([0x1f, 0x8b]));
+  }
+  await page.screenshot({ path: 'test-results/portal-sdks.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(picker.getByRole('link', { name: 'Baixar SDK' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: 'test-results/portal-sdks-mobile.png', fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.screenshot({ path: 'test-results/portal-aplicacao.png', fullPage: true });
   await page.locator('#app-detail > .guide summary').click();
   await expect(page.getByRole('link', { name: 'Baixar exemplo completo (Node.js)' })).toBeVisible();
