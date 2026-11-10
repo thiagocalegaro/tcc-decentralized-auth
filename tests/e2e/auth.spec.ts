@@ -47,7 +47,7 @@ test('signed SIWE → OIDC → protected site; second site SSO; independent loca
   await expect(page.getByRole('button', { name: 'Conectar e assinar' })).toBeHidden();
   await page.screenshot({ path: 'test-results/consentimento-sso.png' });
   await page.getByRole('button', { name: 'Autorizar acesso' }).click();
-  await expect(page).toHaveURL(`${B}/arearestrita`);
+  await expect(page).toHaveURL(`${B}/arearestrita`, { timeout: 20_000 });
   await expect(page.locator('#address')).toHaveText(account.address);
   const secondUser = (await (await page.request.get(`${B}/api/private`)).json()).user;
   expect(secondUser.userId).not.toBe(firstUser.userId);
@@ -80,6 +80,35 @@ test('unauthenticated HTML and private API are blocked; assets do not expose res
   expect((await page.request.get(`${B}/api/private`)).status()).toBe(401);
   expect((await page.request.get(`${A}/demo-assets/restricted.html`)).status()).toBe(404);
   expect(await (await page.request.get(`${A}/api/session`)).json()).toEqual({ authenticated: false });
+});
+
+test('Flask integration rejects forged callbacks, foreign logout and reused cancellation state', async ({ page, browser }) => {
+  const health = await (await page.request.get(`${B}/health`)).json();
+  expect(health.runtime).toBe('python-flask');
+  expect((await page.request.get(`${B}/demo-assets/restricted.html`)).status()).toBe(404);
+  expect((await page.request.get(`${B}/arearestrita`, { maxRedirects: 0 })).status()).toBe(303);
+  const start = await page.request.get(`${B}/auth/login`, { maxRedirects: 0 });
+  const state = new URL(start.headers().location).searchParams.get('state');
+  const foreign = await browser.newContext();
+  expect((await foreign.request.get(`${B}/auth/callback?code=forged&state=${state}`)).status()).toBe(400);
+  await foreign.close();
+  expect((await page.request.post(`${B}/auth/logout`, { headers: { Origin: 'https://evil.example' } })).status()).toBe(403);
+  expect((await page.request.get(`${B}/auth/logout`)).status()).toBe(405);
+  const cancellation = `${B}/auth/callback?error=access_denied&state=${state}`;
+  expect((await page.request.get(cancellation, { maxRedirects: 0 })).status()).toBe(303);
+  expect((await page.request.get(cancellation)).status()).toBe(400);
+  expect((await page.request.get(`${B}/api/private`)).status()).toBe(401);
+});
+
+test('Flask completes a fresh wallet login through direct OIDC', async ({ page, context }) => {
+  const { account, calls } = await wallet(context);
+  await begin(page, B);
+  await page.getByRole('button', { name: 'Conectar e assinar' }).click();
+  await page.getByRole('button', { name: 'Autorizar acesso' }).click();
+  await expect(page).toHaveURL(`${B}/arearestrita`, { timeout: 20_000 });
+  await expect(page.locator('#address')).toHaveText(account.address);
+  expect(calls.signatures).toBe(1);
+  expect((await page.request.get(`${A}/api/private`)).status()).toBe(401);
 });
 
 test('discovery exposes code flow, S256 and public JWKS; unknown redirect and missing PKCE fail', async ({ request }) => {

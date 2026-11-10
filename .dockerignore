@@ -15,3 +15,5 @@ test-results
 playwright-report
 deploy
 frontend/portal/assets/home.js
+.venv
+**/__pycache__

@@ -6,6 +6,8 @@ O ambiente local completo inicia com `docker compose up --build -d --wait` na ra
 
 ## Dados e configuração
 
+A Biblioteca executa em Node.js com o SDK do Âncora. O Observatório executa em um processo Python/Flask iniciado pelo launcher e utiliza a Authlib diretamente. Para execução sem Docker, instale as dependências de `core/apps/observatory/requirements.txt` em `.venv`, conforme o README. O launcher encerra o processo Python ao encerrar o ambiente. O Observatório reutiliza `demo-b.json`, `demo-b.sqlite` e os vínculos existentes na tabela `app_users`.
+
 `ANCORA_DATA_DIR` define o diretório persistente. O padrão local é `.local/`; em produção, use o caminho absoluto `/var/lib/ancora`.
 
 - `provider.json`: issuer, redes autorizadas, chaves RSA privadas e chaves de cookies.

@@ -63,17 +63,21 @@ Bancos, credenciais, `.env`, dependências e artefatos gerados são ignorados pe
 
 ## Executar sem Docker
 
-Requer Node.js 22.13 ou superior e npm.
+Requer Node.js 22.13 ou superior, npm e Python 3.11 ou superior. A Biblioteca usa o SDK Node.js; o Observatório usa Python/Flask e integra diretamente com OIDC por meio da Authlib.
 
 Para iniciar o provedor e as duas demos:
 
 ```sh
 npm ci
+python -m venv .venv
+# Linux/macOS
+.venv/bin/python -m pip install -r core/apps/observatory/requirements.txt
+# No Windows, use .venv\Scripts\python.exe -m pip install -r core/apps/observatory/requirements.txt
 npm run build
 npm run dev:demos
 ```
 
-No Windows, `INICIAR_DEMOS.cmd` executa essa sequência. O ambiente usa `.local/demos/` por padrão.
+Após instalar as dependências Python, `INICIAR_DEMOS.cmd` executa os comandos Node.js no Windows. O launcher detecta o Python de `.venv`; a variável `ANCORA_PYTHON` permite indicar outro executável com as dependências instaladas. O ambiente usa `.local/demos/` por padrão. A imagem Docker instala os dois ambientes automaticamente.
 
 Para iniciar somente o Âncora, com o portal:
 
