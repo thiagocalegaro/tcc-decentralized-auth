@@ -170,4 +170,4 @@ O navegador padrão é Microsoft Edge. Para usar Chromium, instale-o com `npx pl
 - [Operação e backups](docs/OPERACAO.md)
 - [Modelos para implantação futura em VPS](docs/DEPLOY.md)
 
-Protótipo acadêmico para testes de integração. A identidade é baseada em carteira, mas a emissão de tokens depende do servidor Âncora. A implementação cobre contas EOA; não inclui carteiras ERC-1271, WalletConnect ou recuperação de chaves. Não há certificação OIDC desta implantação nem logout global das sessões dos sites.
+Protótipo acadêmico para testes de integração. A identidade é baseada em carteira, mas a emissão de tokens depende do servidor Âncora. A implementação cobre contas EOA; não inclui carteiras ERC-1271, WalletConnect ou recuperação de chaves.
