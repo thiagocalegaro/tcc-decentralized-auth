@@ -183,6 +183,30 @@ test('cancel returns to the application without creating a session', async ({ pa
   expect((await page.request.get(`${A}/api/private`)).status()).toBe(401);
 });
 
+test('wallet cards display extension icons and preserve keyboard focus', async ({ page, context }) => {
+  await wallet(context);
+  await context.addInitScript(() => {
+    window.addEventListener('eip6963:requestProvider', () => {
+      const icon = encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><rect width="24" height="24" fill="green"/></svg>');
+      window.dispatchEvent(new CustomEvent('eip6963:announceProvider', {
+        detail: {
+          info: { uuid: 'wallet-with-icon', name: 'Carteira com ícone', icon: 'data:image/svg+xml,' + icon },
+          provider: { request: async () => [] },
+        },
+      }));
+    });
+  });
+  await begin(page);
+  const fallback = page.getByRole('button', { name: 'Carteira de teste', exact: true });
+  const withIcon = page.getByRole('button', { name: 'Carteira com ícone', exact: true });
+  await expect(fallback.locator('.wallet-monogram')).toBeVisible();
+  await expect(withIcon.locator('img')).toBeVisible();
+  await withIcon.press('Space');
+  await expect(withIcon).toBeFocused();
+  await expect(withIcon).toHaveAttribute('aria-pressed', 'true');
+  await expect(fallback).toHaveAttribute('aria-pressed', 'false');
+});
+
 test('desktop and mobile layout, focusable controls and missing-wallet guidance', async ({ page }) => {
   for (const size of [{ width: 1366, height: 768 }, { width: 390, height: 844 }, { width: 320, height: 740 }]) {
     await page.setViewportSize(size); await page.goto(A);

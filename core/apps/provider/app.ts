@@ -72,7 +72,7 @@ export function createProviderApp(settings: ProviderSettings, database: string, 
   // Koa must see HTTPS when TLS terminates at the local Caddy proxy.
   provider.proxy = !!options.trustLoopbackProxy;
   const app = express();
-  security(app, secure, () => registry.logoutOrigins());
+  security(app, secure, () => registry.logoutOrigins(), true);
   if (options.trustLoopbackProxy) {
     app.set('trust proxy', 'loopback');
     // The production listener is loopback-only. Also enforce the boundary here.

@@ -1,9 +1,9 @@
 interface WalletProvider { request(input: { method: string; params?: unknown[] }): Promise<unknown> }
-interface Wallet { id: string; name: string; provider: WalletProvider }
+interface Wallet { id: string; name: string; icon?: string; provider: WalletProvider }
 interface Interaction { prompt: string; csrf: string; clientName: string; clientOrigin: string; issuer: string; chains: number[]; accountId: string | null }
 const wallets: Wallet[] = [];
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-const select = element<HTMLSelectElement>('wallet');
+let selectedWalletId = '';
 const sign = element<HTMLButtonElement>('sign');
 const confirm = element<HTMLButtonElement>('confirm');
 const abort = element<HTMLButtonElement>('abort');
@@ -12,9 +12,43 @@ let busy = false;
 let interaction: Interaction;
 const path = window.location.pathname;
 function renderWallets() {
-  const current = select.value;
-  select.replaceChildren(...wallets.map(wallet => new Option(wallet.name, wallet.id)));
-  if (wallets.some(w => w.id === current)) select.value = current;
+  if (!wallets.some(wallet => wallet.id === selectedWalletId)) selectedWalletId = wallets[0]?.id ?? '';
+  const options = element('wallet-options');
+  for (const wallet of wallets.slice(options.childElementCount)) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'wallet-option';
+    button.dataset.walletId = wallet.id;
+    button.addEventListener('click', () => { selectedWalletId = wallet.id; renderWallets(); });
+    const mark = document.createElement('span');
+    mark.className = 'wallet-icon wallet-monogram';
+    mark.setAttribute('aria-hidden', 'true');
+    mark.textContent = wallet.name.trim().slice(0, 1).toLocaleUpperCase();
+    button.append(mark);
+    if (wallet.icon && wallet.icon.length <= 128_000
+      && /^data:image\/(?:svg\+xml|png|jpeg|webp|gif)[;,]/i.test(wallet.icon)) {
+      const icon = document.createElement('img');
+      icon.className = 'wallet-icon';
+      icon.alt = '';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.addEventListener('load', () => mark.replaceWith(icon), { once: true });
+      icon.src = wallet.icon;
+    }
+    const name = document.createElement('span');
+    name.className = 'wallet-name';
+    name.textContent = wallet.name;
+    button.append(name);
+    const check = document.createElement('span');
+    check.className = 'wallet-check';
+    check.setAttribute('aria-hidden', 'true');
+    check.textContent = '✓';
+    button.append(check);
+    options.append(button);
+  }
+  for (const button of options.querySelectorAll('button')) {
+    button.setAttribute('aria-pressed', String(button.dataset.walletId === selectedWalletId));
+    button.disabled = busy;
+  }
   sign.disabled = !wallets.length || busy;
   element('no-wallet').hidden = wallets.length > 0;
 }
@@ -23,7 +57,7 @@ window.addEventListener('eip6963:announceProvider', event => {
   if (!detail?.provider?.request || typeof detail.info?.uuid !== 'string' || typeof detail.info?.name !== 'string') return;
   if (wallets.some(wallet => wallet.id === detail.info.uuid || wallet.provider === detail.provider)) return;
   if (wallets.length >= 20) return;
-  wallets.push({ id: detail.info.uuid, name: detail.info.name.slice(0, 80), provider: detail.provider });
+  wallets.push({ id: detail.info.uuid, name: detail.info.name.slice(0, 80), icon: typeof detail.info.icon === 'string' ? detail.info.icon : undefined, provider: detail.provider });
   renderWallets();
 });
 window.dispatchEvent(new Event('eip6963:requestProvider'));
@@ -45,18 +79,18 @@ function redirect(target: string) {
 }
 async function run(work: () => Promise<void>) {
   if (busy) return;
-  busy = true; sign.disabled = true; confirm.disabled = true; abort.disabled = true; select.disabled = true;
+  busy = true; sign.disabled = true; confirm.disabled = true; abort.disabled = true; renderWallets();
   status.classList.remove('error');
   try { await work(); }
   catch (error) {
     const rejected = (error as { code?: number }).code === 4001;
     status.textContent = rejected ? 'Você recusou a solicitação na carteira. Pode tentar novamente.' : error instanceof Error ? error.message : 'Falha ao autenticar.';
     status.classList.add('error');
-    busy = false; confirm.disabled = false; abort.disabled = false; select.disabled = false; renderWallets();
+    busy = false; confirm.disabled = false; abort.disabled = false; renderWallets();
   }
 }
 sign.addEventListener('click', () => void run(async () => {
-  const wallet = wallets.find(wallet => wallet.id === select.value);
+  const wallet = wallets.find(wallet => wallet.id === selectedWalletId);
   if (!wallet) throw new Error('Escolha uma carteira para continuar.');
   status.textContent = 'Confirme a conexão na carteira.';
   const accounts = await wallet.provider.request({ method: 'eth_requestAccounts' }) as string[];

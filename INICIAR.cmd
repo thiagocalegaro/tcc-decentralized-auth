@@ -7,10 +7,8 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-if not exist node_modules (
-  call npm ci
-  if errorlevel 1 goto :error
-)
+call :dependencies
+if errorlevel 1 goto :error
 call npm run setup
 if errorlevel 1 goto :error
 call npm run build
@@ -23,3 +21,12 @@ exit /b 0
 echo Nao foi possivel iniciar. Confira a mensagem acima.
 pause
 exit /b 1
+
+:dependencies
+if exist "node_modules\.package-lock.json" if exist "node_modules\.bin\tsc.cmd" if exist "node_modules\.bin\tsx.cmd" if exist "node_modules\.bin\esbuild.cmd" exit /b 0
+call npm ci
+if errorlevel 1 exit /b 1
+if not exist "node_modules\.bin\tsc.cmd" exit /b 1
+if not exist "node_modules\.bin\tsx.cmd" exit /b 1
+if not exist "node_modules\.bin\esbuild.cmd" exit /b 1
+exit /b 0

@@ -1,13 +1,13 @@
 import helmet from 'helmet';
 import type { Express, ErrorRequestHandler } from 'express';
-export function security(app: Express, secure: boolean, formTargets: string[] | (() => string[]) = []) {
+export function security(app: Express, secure: boolean, formTargets: string[] | (() => string[]) = [], allowInlineImages = false) {
   app.disable('x-powered-by');
   app.set('trust proxy', false);
   app.use(helmet({
     strictTransportSecurity: secure ? undefined : false,
     contentSecurityPolicy: { directives: {
       defaultSrc: ["'self'"], scriptSrc: ["'self'"], styleSrc: ["'self'"],
-      imgSrc: ["'self'"], connectSrc: ["'self'"], objectSrc: ["'none'"],
+      imgSrc: allowInlineImages ? ["'self'", 'data:'] : ["'self'"], connectSrc: ["'self'"], objectSrc: ["'none'"],
       frameAncestors: ["'none'"], formAction: ["'self'", ...(typeof formTargets === 'function' ? [() => formTargets().join(' ')] : formTargets)], upgradeInsecureRequests: secure ? [] : null,
     } },
     // Keep a concrete Origin on same-origin form POSTs. Callback responses use no-referrer.
